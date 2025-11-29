@@ -2,7 +2,9 @@
 
 const nextConfig = {
   experimental: {
-    // This is the correct key for Next.js 14
+    // This is often needed to fix the ESM import error for react-pdf
+    esmExternals: 'loose',
+    // If you are using it in Server Components, you might also need this:
     serverComponentsExternalPackages: ['@react-pdf/renderer'],
   },
   images: {
@@ -12,6 +14,11 @@ const nextConfig = {
         hostname: '**',
       },
     ],
+  },
+  webpack: (config) => {
+    // This prevents webpack from trying to bundle 'canvas', which is a node-only dep
+    config.resolve.alias.canvas = false;
+    return config;
   },
 };
 

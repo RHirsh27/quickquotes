@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui'
 import { Input } from '@/components/ui/input'
 import { Save, Building2 } from 'lucide-react'
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui'
 import { Input } from '@/components/ui/input'
 import { Trash2, Plus, User, ChevronLeft } from 'lucide-react'
 import Link from 'next/link'

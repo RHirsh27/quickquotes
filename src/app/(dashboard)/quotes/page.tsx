@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Plus, ChevronRight, FileText } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui'
 import type { Quote } from '@/lib/types'
 
 type QuoteWithCustomer = Quote & {
