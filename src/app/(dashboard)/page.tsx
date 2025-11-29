@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Plus, History, Users, Settings, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
