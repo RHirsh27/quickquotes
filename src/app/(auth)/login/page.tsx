@@ -3,19 +3,22 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/input'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError(null)
     
     if (isSignUp) {
       const { error } = await supabase.auth.signUp({ 
@@ -23,12 +26,22 @@ export default function LoginPage() {
         password,
         options: { data: { full_name: 'New Tech' } } // Metadata for trigger
       })
-      if (error) alert(error.message)
-      else alert('Check your email for the confirmation link!')
+      if (error) {
+        setError(error.message)
+      } else {
+        setError(null)
+        alert('Check your email for the confirmation link!')
+      }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) alert(error.message)
-      else router.push('/dashboard')
+      if (error) {
+        setError(error.message)
+      } else {
+        setError(null)
+        // Wait a moment for session to be established, then redirect
+        await new Promise(resolve => setTimeout(resolve, 100))
+        window.location.href = '/dashboard'
+      }
     }
     setLoading(false)
   }
@@ -42,26 +55,29 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleAuth} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input
-              type="email"
-              required
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              required
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
+          {error && (
+            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+              {error}
+            </div>
+          )}
+          
+          <Input
+            type="email"
+            label="Email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
+          />
+          
+          <Input
+            type="password"
+            label="Password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+          />
           
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Log In'}
@@ -70,8 +86,12 @@ export default function LoginPage() {
 
         <div className="text-center text-sm">
           <button 
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={() => {
+              setIsSignUp(!isSignUp)
+              setError(null)
+            }}
             className="text-blue-600 hover:underline"
+            disabled={loading}
           >
             {isSignUp ? 'Already have an account? Log in' : 'Need an account? Sign up'}
           </button>

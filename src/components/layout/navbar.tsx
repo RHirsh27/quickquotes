@@ -19,7 +19,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Trade Job Quoter</h2>
           <Button variant="outline" onClick={handleSignOut}>
-            Sign Out
+            Log Out
           </Button>
         </div>
       </div>

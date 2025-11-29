@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui'
+import { Button } from '@/components/ui/Button'
 import { ChevronLeft, Download, Send } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'

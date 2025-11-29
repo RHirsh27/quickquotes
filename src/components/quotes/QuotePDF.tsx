@@ -1,9 +1,14 @@
 'use client'
 
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import type { Quote, QuoteLineItem, Customer, User } from '@/lib/types'
 
-// Register a standard font (optional, using Helvetica by default is fine)
-// Font.register({ family: 'Helvetica', src: '...' })
+interface QuotePDFProps {
+  quote: Quote
+  items: QuoteLineItem[]
+  customer: Customer
+  userProfile: User
+}
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontFamily: 'Helvetica', fontSize: 10, color: '#333' },
@@ -33,48 +38,49 @@ const styles = StyleSheet.create({
   totalValue: { width: '40%', textAlign: 'right', fontWeight: 'bold' },
   grandTotal: { fontSize: 14, marginTop: 8 },
   
-  footer: { position: 'absolute', bottom: 30, left: 40, right: 40, textAlign: 'center', color: '#999', fontSize: 9 }
+  footer: { position: 'absolute', bottom: 30, left: 40, right: 40, textAlign: 'center', color: '#999', fontSize: 9 },
+  notesSection: { marginTop: 40, padding: 10, backgroundColor: '#f9fafb' }
 })
-
-// Types (reusing or importing from your types file)
-interface QuotePDFProps {
-  quote: any
-  items: any[]
-  customer: any
-  userProfile: any
-}
 
 export const QuotePDF = ({ quote, items, customer, userProfile }: QuotePDFProps) => (
   <Document>
     <Page size="A4" style={styles.page}>
       
-      {/* Header */}
+      {/* Header: User's Company Name & Info */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.companyName}>{userProfile?.company_name || 'Service Company'}</Text>
-          <Text>{userProfile?.phone}</Text>
-          <Text>{userProfile?.email}</Text>
+          <Text style={styles.companyName}>
+            {userProfile?.company_name || 'Service Company'}
+          </Text>
+          {userProfile?.phone && <Text>{userProfile.phone}</Text>}
+          {userProfile?.full_name && <Text>{userProfile.full_name}</Text>}
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={{ fontSize: 24, color: '#2563eb' }}>ESTIMATE</Text>
           <Text style={{ marginTop: 4 }}>#{quote.quote_number}</Text>
-          <Text style={{ marginTop: 2 }}>{new Date(quote.created_at).toLocaleDateString()}</Text>
+          <Text style={{ marginTop: 2 }}>
+            {new Date(quote.created_at).toLocaleDateString()}
+          </Text>
         </View>
       </View>
 
-      {/* Customer Info */}
+      {/* Body: Customer Info */}
       <View style={styles.infoSection}>
         <View style={styles.infoCol}>
           <Text style={styles.label}>BILL TO:</Text>
           <Text style={{ fontWeight: 'bold' }}>{customer.name}</Text>
           {customer.address_line_1 && <Text>{customer.address_line_1}</Text>}
-          {customer.city && <Text>{customer.city} {customer.state} {customer.postal_code}</Text>}
+          {customer.city && customer.state && (
+            <Text>
+              {customer.city}, {customer.state} {customer.postal_code || ''}
+            </Text>
+          )}
           {customer.phone && <Text>{customer.phone}</Text>}
           {customer.email && <Text>{customer.email}</Text>}
         </View>
       </View>
 
-      {/* Line Items Table */}
+      {/* Body: Line Items Table */}
       <View style={styles.table}>
         <View style={styles.tableHeader}>
           <Text style={styles.colDesc}>DESCRIPTION</Text>
@@ -87,16 +93,22 @@ export const QuotePDF = ({ quote, items, customer, userProfile }: QuotePDFProps)
           <View key={i} style={styles.tableRow}>
             <View style={styles.colDesc}>
               <Text style={{ fontWeight: 'bold' }}>{item.label}</Text>
-              {item.description && <Text style={{ color: '#666', fontSize: 9 }}>{item.description}</Text>}
+              {item.description && (
+                <Text style={{ color: '#666', fontSize: 9 }}>
+                  {item.description}
+                </Text>
+              )}
             </View>
             <Text style={styles.colQty}>{item.quantity}</Text>
             <Text style={styles.colRate}>${item.unit_price.toFixed(2)}</Text>
-            <Text style={styles.colTotal}>${(item.quantity * item.unit_price).toFixed(2)}</Text>
+            <Text style={styles.colTotal}>
+              ${(item.quantity * item.unit_price).toFixed(2)}
+            </Text>
           </View>
         ))}
       </View>
 
-      {/* Totals */}
+      {/* Footer: Totals */}
       <View style={styles.totalsSection}>
         <View>
           <View style={styles.totalRow}>
@@ -116,9 +128,9 @@ export const QuotePDF = ({ quote, items, customer, userProfile }: QuotePDFProps)
         </View>
       </View>
 
-      {/* Footer / Notes */}
+      {/* Footer: Notes */}
       {quote.notes && (
-        <View style={{ marginTop: 40, padding: 10, backgroundColor: '#f9fafb' }}>
+        <View style={styles.notesSection}>
           <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Notes / Terms:</Text>
           <Text>{quote.notes}</Text>
         </View>
@@ -128,4 +140,3 @@ export const QuotePDF = ({ quote, items, customer, userProfile }: QuotePDFProps)
     </Page>
   </Document>
 )
-
