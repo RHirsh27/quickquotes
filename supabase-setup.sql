@@ -83,18 +83,22 @@ CREATE POLICY "Users can insert own profile"
   WITH CHECK (auth.uid() = id);
 
 -- 8. Create RLS Policies for customers table
+DROP POLICY IF EXISTS "Users can view own customers" ON public.customers;
 CREATE POLICY "Users can view own customers"
   ON public.customers FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own customers" ON public.customers;
 CREATE POLICY "Users can insert own customers"
   ON public.customers FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own customers" ON public.customers;
 CREATE POLICY "Users can update own customers"
   ON public.customers FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own customers" ON public.customers;
 CREATE POLICY "Users can delete own customers"
   ON public.customers FOR DELETE
   USING (auth.uid() = user_id);
@@ -117,18 +121,22 @@ CREATE POLICY "Users can delete own presets"
   USING (auth.uid() = user_id);
 
 -- 10. Create RLS Policies for quotes table
+DROP POLICY IF EXISTS "Users can view own quotes" ON public.quotes;
 CREATE POLICY "Users can view own quotes"
   ON public.quotes FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own quotes" ON public.quotes;
 CREATE POLICY "Users can insert own quotes"
   ON public.quotes FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own quotes" ON public.quotes;
 CREATE POLICY "Users can update own quotes"
   ON public.quotes FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own quotes" ON public.quotes;
 CREATE POLICY "Users can delete own quotes"
   ON public.quotes FOR DELETE
   USING (auth.uid() = user_id);
