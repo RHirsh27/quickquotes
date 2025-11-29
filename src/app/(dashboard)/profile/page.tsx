@@ -66,6 +66,13 @@ export default function ProfilePage() {
       .eq('id', user.id)
 
     if (error) {
+      console.error('Profile update error:', error)
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
       setMessage({ type: 'error', text: 'Error updating profile: ' + error.message })
     } else {
       setMessage({ type: 'success', text: 'Profile updated successfully!' })

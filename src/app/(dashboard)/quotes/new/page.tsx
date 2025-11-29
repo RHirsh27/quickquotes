@@ -131,17 +131,39 @@ export default function NewQuotePage() {
       return
     }
 
+    // Validate line items have required data
+    for (const item of items) {
+      if (!item.label.trim()) {
+        alert('All line items must have a label/description')
+        return
+      }
+      if (item.quantity <= 0) {
+        alert('All line items must have a quantity greater than 0')
+        return
+      }
+      if (item.unit_price < 0) {
+        alert('All line items must have a valid price')
+        return
+      }
+    }
+
     setLoading(true)
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         alert('You must be logged in')
+        setLoading(false)
         return
       }
 
       // 1. Handle Customer (Get ID or Create New)
       let finalCustomerId = selectedCustomerId
+      
+      // Validate customer ID is a valid UUID format
+      if (mode === 'select_customer' && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedCustomerId)) {
+        throw new Error('Invalid customer ID format')
+      }
 
       if (mode === 'new_customer') {
         const { data: newCust, error: custError } = await supabase
@@ -166,19 +188,24 @@ export default function NewQuotePage() {
       // 2. Create Quote
       const quoteNumber = `Q-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
       
+      // Validate all numeric values are valid numbers
+      const quoteData = {
+        user_id: user.id,
+        customer_id: finalCustomerId,
+        quote_number: quoteNumber,
+        status: status,
+        subtotal: Number(subtotal) || 0,
+        tax_amount: Number(taxAmount) || 0,
+        tax_rate: Number(taxRate) || 0,
+        total: Number(total) || 0,
+        notes: null
+      }
+      
+      console.log('Creating quote with data:', quoteData)
+      
       const { data: quote, error: quoteError } = await supabase
         .from('quotes')
-        .insert({
-          user_id: user.id,
-          customer_id: finalCustomerId,
-          quote_number: quoteNumber,
-          status: status,
-          subtotal: subtotal,
-          tax_amount: taxAmount,
-          tax_rate: taxRate,
-          total: total,
-          notes: null
-        })
+        .insert(quoteData)
         .select()
         .single()
 
@@ -189,11 +216,13 @@ export default function NewQuotePage() {
         quote_id: quote.id,
         label: item.label.trim() || 'Service',
         description: item.description.trim() || null,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        taxable: item.taxable,
-        position: index
+        quantity: Number(item.quantity) || 1,
+        unit_price: Number(item.unit_price) || 0,
+        taxable: Boolean(item.taxable),
+        position: Number(index) || 0
       }))
+
+      console.log('Creating line items:', lineItemsData)
 
       const { error: linesError } = await supabase
         .from('quote_line_items')
@@ -206,7 +235,13 @@ export default function NewQuotePage() {
       
     } catch (error: any) {
       console.error('Error saving quote:', error)
-      alert('Error saving quote: ' + (error.message || 'Unknown error'))
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
+      alert(`Error saving quote: ${error.message || 'Unknown error'}\n\nCheck console for details.`)
     } finally {
       setLoading(false)
     }
