@@ -3,6 +3,9 @@ const nextConfig = {
   // Handle ESM packages like @react-pdf/renderer
   transpilePackages: ['@react-pdf/renderer'],
   
+  // External packages for server components
+  serverExternalPackages: ['@react-pdf/renderer'],
+  
   // Webpack config for PDF rendering
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -12,11 +15,6 @@ const nextConfig = {
         canvas: false,
       };
     }
-    
-    // Handle ESM modules
-    config.resolve.extensionAlias = {
-      '.js': ['.js', '.ts', '.tsx'],
-    };
     
     return config;
   },
