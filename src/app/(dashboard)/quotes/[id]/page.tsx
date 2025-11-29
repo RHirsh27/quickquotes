@@ -6,10 +6,14 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui'
 import { ChevronLeft, Download, Send } from 'lucide-react'
 import Link from 'next/link'
-import { QuotePDF } from '@/components/quotes/QuotePDF'
 import dynamic from 'next/dynamic'
 
-// Dynamically import PDFDownloadLink to avoid SSR issues
+// Dynamically import PDF components to avoid SSR issues with @react-pdf/renderer
+const QuotePDF = dynamic(
+  () => import('@/components/quotes/QuotePDF').then((mod) => mod.QuotePDF),
+  { ssr: false }
+)
+
 const PDFDownloadLink = dynamic(
   () => import('@react-pdf/renderer').then((mod) => mod.PDFDownloadLink),
   { ssr: false, loading: () => <p>Loading PDF...</p> }
