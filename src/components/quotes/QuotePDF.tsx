@@ -52,6 +52,12 @@ export const QuotePDF = ({ quote, items, customer, userProfile }: QuotePDFProps)
           <Text style={styles.companyName}>
             {userProfile?.company_name || 'Service Company'}
           </Text>
+          {userProfile?.address_line_1 && <Text>{userProfile.address_line_1}</Text>}
+          {userProfile?.city && userProfile?.state && (
+            <Text>
+              {userProfile.city}, {userProfile.state} {userProfile.postal_code || ''}
+            </Text>
+          )}
           {userProfile?.phone && <Text>{userProfile.phone}</Text>}
           {userProfile?.full_name && <Text>{userProfile.full_name}</Text>}
         </View>

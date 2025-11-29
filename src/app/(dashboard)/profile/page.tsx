@@ -14,7 +14,11 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     full_name: '',
     company_name: '',
-    phone: ''
+    phone: '',
+    address_line_1: '',
+    city: '',
+    state: '',
+    postal_code: ''
   })
 
   useEffect(() => {
@@ -37,7 +41,11 @@ export default function ProfilePage() {
         setFormData({
           full_name: data.full_name || '',
           company_name: data.company_name || '',
-          phone: data.phone || ''
+          phone: data.phone || '',
+          address_line_1: data.address_line_1 || '',
+          city: data.city || '',
+          state: data.state || '',
+          postal_code: data.postal_code || ''
         })
       }
     }
@@ -61,7 +69,11 @@ export default function ProfilePage() {
       .update({
         full_name: formData.full_name.trim() || null,
         company_name: formData.company_name.trim() || null,
-        phone: formData.phone.trim() || null
+        phone: formData.phone.trim() || null,
+        address_line_1: formData.address_line_1.trim() || null,
+        city: formData.city.trim() || null,
+        state: formData.state.trim() || null,
+        postal_code: formData.postal_code.trim() || null
       })
       .eq('id', user.id)
 
@@ -117,6 +129,31 @@ export default function ProfilePage() {
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
           />
+
+          <Input
+            label="Business Address"
+            placeholder="123 Main St"
+            value={formData.address_line_1}
+            onChange={(e) => setFormData({ ...formData, address_line_1: e.target.value })}
+          />
+
+          <div className="grid grid-cols-3 gap-4">
+            <Input
+              label="City"
+              value={formData.city}
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+            />
+            <Input
+              label="State"
+              value={formData.state}
+              onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+            />
+            <Input
+              label="Zip Code"
+              value={formData.postal_code}
+              onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+            />
+          </div>
 
           {message && (
             <div className={`p-3 rounded-lg text-sm font-medium ${

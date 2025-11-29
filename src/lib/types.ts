@@ -5,6 +5,10 @@ export interface User {
   full_name: string | null
   company_name: string | null // Appears on PDF header
   phone: string | null
+  address_line_1: string | null
+  city: string | null
+  state: string | null
+  postal_code: string | null
   created_at: string
 }
 

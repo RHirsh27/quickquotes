@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { BottomNav } from '@/components/layout/BottomNav'
 import Navbar from '@/components/layout/navbar'
 
 export default async function DashboardLayout({
@@ -9,17 +10,30 @@ export default async function DashboardLayout({
 }) {
   try {
     const supabase = await createClient()
-    
     const { data: { user }, error } = await supabase.auth.getUser()
-    
     if (error || !user) {
       redirect('/login')
     }
-
     return (
-      <div className="min-h-screen">
-        <Navbar />
-        <main>{children}</main>
+      <div className="min-h-screen bg-gray-50">
+        {/* Desktop Header (Hidden on mobile) */}
+        <div className="hidden md:flex items-center justify-between px-8 py-4 bg-white border-b sticky top-0 z-10">
+          <h1 className="text-xl font-bold text-gray-800">Trade Job Quoter</h1>
+          <Navbar />
+        </div>
+
+        {/* Mobile Header (Visible on mobile) */}
+        <div className="md:hidden">
+          <Navbar />
+        </div>
+
+        {/* Main Content */}
+        <main className="pb-24 md:pb-8">
+          {children}
+        </main>
+
+        {/* Mobile Bottom Navigation */}
+        <BottomNav />
       </div>
     )
   } catch (error) {
