@@ -56,6 +56,8 @@ export async function getTeamById(teamId: string) {
 
 /**
  * Get all members of a team (if user is a member)
+ * Note: Email is not available from users table - it's in auth.users
+ * For production, you'd need a server action to fetch email from auth.users
  */
 export async function getTeamMembers(teamId: string) {
   const supabase = await createClient()
@@ -66,11 +68,11 @@ export async function getTeamMembers(teamId: string) {
       users:user_id (
         id,
         full_name,
-        company_name,
-        email
+        company_name
       )
     `)
     .eq('team_id', teamId)
+    .order('created_at', { ascending: true })
   
   if (error) {
     console.error('Error fetching team members:', error)
