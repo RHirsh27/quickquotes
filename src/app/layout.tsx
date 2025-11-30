@@ -5,7 +5,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Trade Job Quoter',
+  title: 'QuickQuotes',
   description: 'Professional quoting tool for trade jobs',
 }
 

@@ -17,7 +17,7 @@ export default function Navbar() {
     <nav className="border-b bg-white">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Trade Job Quoter</h2>
+          <h2 className="text-xl font-semibold">QuickQuotes</h2>
           <Button variant="outline" onClick={handleSignOut}>
             Log Out
           </Button>
