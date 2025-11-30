@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui'
 import { Input } from '@/components/ui/input'
 import { LoadingButton } from '@/components/ui/LoadingButton'
+import { LoadingSpinner } from '@/components/ui'
 import { PasswordStrength } from '@/components/ui/PasswordStrength'
 import { Lock, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
@@ -14,7 +15,7 @@ import { sanitizeString } from '@/lib/utils/sanitize'
 import { validatePassword } from '@/lib/utils/validation'
 import { createThrottledSubmit } from '@/lib/utils/rateLimit'
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -143,6 +144,23 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 text-center">
+            <LoadingSpinner size="lg" className="mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   )
 }
 

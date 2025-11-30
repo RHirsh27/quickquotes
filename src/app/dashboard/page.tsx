@@ -4,6 +4,9 @@ import Link from 'next/link'
 import { Button } from '@/components/ui'
 import { Plus } from 'lucide-react'
 
+// Mark this route as dynamic since it uses cookies for authentication
+export const dynamic = 'force-dynamic'
+
 export default async function Dashboard() {
   const supabase = await createClient()
   
