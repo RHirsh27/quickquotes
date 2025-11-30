@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { BottomNav } from '@/components/layout/BottomNav'
 import Navbar from '@/components/layout/navbar'
+import { DashboardWrapper } from '@/components/layout/DashboardWrapper'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export default async function DashboardLayout({
@@ -16,7 +17,7 @@ export default async function DashboardLayout({
       redirect('/login')
     }
     return (
-      <ErrorBoundary>
+      <DashboardWrapper>
         <div className="min-h-screen bg-gray-50">
           {/* Desktop Header (Hidden on mobile) */}
           <div className="hidden md:flex items-center justify-between px-8 py-4 bg-white border-b sticky top-0 z-10">
@@ -37,7 +38,7 @@ export default async function DashboardLayout({
           {/* Mobile Bottom Navigation */}
           <BottomNav />
         </div>
-      </ErrorBoundary>
+      </DashboardWrapper>
     )
   } catch (error) {
     console.error('Error in dashboard layout:', error)

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
 import { Building2, MapPin, User, Mail, Lock, Phone } from 'lucide-react'
+import Link from 'next/link'
 import toast from 'react-hot-toast'
 
 export default function AuthPage() {
