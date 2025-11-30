@@ -12,9 +12,24 @@ export interface User {
   created_at: string
 }
 
+export interface Team {
+  id: string // uuid, PK
+  name: string
+  created_at: string
+}
+
+export interface TeamMember {
+  id: string // uuid, PK
+  team_id: string // uuid, FK -> teams.id
+  user_id: string // uuid, FK -> users.id
+  role: 'owner' | 'member'
+  created_at: string
+}
+
 export interface Customer {
   id: string // uuid, PK
-  user_id: string // uuid, FK -> users.id
+  user_id: string // uuid, FK -> users.id (kept for backwards compatibility, but team_id is primary)
+  team_id: string // uuid, FK -> teams.id
   name: string
   phone: string | null
   email: string | null
@@ -27,7 +42,8 @@ export interface Customer {
 
 export interface ServicePreset {
   id: string // uuid, PK
-  user_id: string // uuid, FK -> users.id
+  user_id: string // uuid, FK -> users.id (kept for backwards compatibility, but team_id is primary)
+  team_id: string // uuid, FK -> teams.id
   name: string // e.g., "Service Call"
   default_price: number // numeric
   default_taxable: boolean
@@ -35,7 +51,8 @@ export interface ServicePreset {
 
 export interface Quote {
   id: string // uuid, PK
-  user_id: string // uuid, FK -> users.id
+  user_id: string // uuid, FK -> users.id (kept for backwards compatibility, but team_id is primary)
+  team_id: string // uuid, FK -> teams.id
   customer_id: string // uuid, FK -> customers.id
   quote_number: string // e.g., "Q-2024-1001"
   status: 'draft' | 'sent' | 'accepted' | 'declined'
