@@ -18,13 +18,10 @@ export default function ResetPasswordPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    // Check if we have the hash from the email link
-    const hash = searchParams.get('hash')
-    if (!hash) {
-      toast.error('Invalid reset link')
-      router.push('/forgot-password')
-    }
-  }, [searchParams, router])
+    // Supabase password reset tokens come in the URL hash (#access_token=...)
+    // The Supabase client will automatically handle this when updateUser is called
+    // No need to validate the hash here - let Supabase handle it
+  }, [])
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault()
