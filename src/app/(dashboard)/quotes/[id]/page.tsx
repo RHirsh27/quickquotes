@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui'
-import { ChevronLeft, Download, Share2, Printer, Mail, MessageCircle } from 'lucide-react'
+import { ChevronLeft, Download, Share2, Printer, Mail, MessageCircle, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { QuotePDF } from '@/components/quotes/QuotePDF'
 import dynamic from 'next/dynamic'
@@ -27,6 +27,7 @@ export default function QuoteDetailsPage() {
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [initialLoading, setInitialLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     async function fetchQuoteData() {
@@ -113,6 +114,38 @@ export default function QuoteDetailsPage() {
     window.location.href = `sms:${customer.phone || ''}?&body=${body}`
   }
 
+  const handleDelete = async () => {
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this quote? This cannot be undone.'
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setDeleting(true)
+
+    try {
+      // Delete the quote (line items will be deleted automatically via CASCADE)
+      const { error } = await supabase
+        .from('quotes')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        throw error
+      }
+
+      toast.success('Quote deleted successfully')
+      router.push('/dashboard')
+    } catch (error: any) {
+      console.error('Error deleting quote:', error)
+      toast.error(`Failed to delete quote: ${error.message || 'Unknown error'}`)
+      setDeleting(false)
+    }
+  }
+
       if (initialLoading) {
         return (
           <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -145,34 +178,47 @@ export default function QuoteDetailsPage() {
       <div className="max-w-3xl mx-auto p-4 space-y-6">
         
         {/* Action Buttons - Hide when printing */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 print:hidden">
-          {/* PDF Download */}
-          <PDFDownloadLink
-            document={<QuotePDF quote={quote} items={items} customer={customer} userProfile={profile} />}
-            fileName={`Quote-${quote.quote_number}.pdf`}
-            className="w-full"
+        <div className="space-y-3 print:hidden">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* PDF Download */}
+            <PDFDownloadLink
+              document={<QuotePDF quote={quote} items={items} customer={customer} userProfile={profile} />}
+              fileName={`Quote-${quote.quote_number}.pdf`}
+              className="w-full"
+            >
+              {/* @ts-ignore */}
+              {({ loading }) => (
+                <Button disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700">
+                  <Download className="mr-2 h-4 w-4" /> PDF
+                </Button>
+              )}
+            </PDFDownloadLink>
+
+            {/* Print */}
+            <Button variant="outline" onClick={handlePrint} className="w-full">
+              <Printer className="mr-2 h-4 w-4" /> Print
+            </Button>
+
+            {/* Email */}
+            <Button variant="outline" onClick={handleEmail} className="w-full">
+              <Mail className="mr-2 h-4 w-4" /> Email
+            </Button>
+
+            {/* Text */}
+            <Button variant="outline" onClick={handleSMS} className="w-full">
+              <MessageCircle className="mr-2 h-4 w-4" /> Text
+            </Button>
+          </div>
+
+          {/* Delete Button */}
+          <Button
+            variant="ghost"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200"
           >
-            {/* @ts-ignore */}
-            {({ loading }) => (
-              <Button disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700">
-                <Download className="mr-2 h-4 w-4" /> PDF
-              </Button>
-            )}
-          </PDFDownloadLink>
-
-          {/* Print */}
-          <Button variant="outline" onClick={handlePrint} className="w-full">
-            <Printer className="mr-2 h-4 w-4" /> Print
-          </Button>
-
-          {/* Email */}
-          <Button variant="outline" onClick={handleEmail} className="w-full">
-            <Mail className="mr-2 h-4 w-4" /> Email
-          </Button>
-
-           {/* Text */}
-           <Button variant="outline" onClick={handleSMS} className="w-full">
-            <MessageCircle className="mr-2 h-4 w-4" /> Text
+            <Trash2 className="mr-2 h-4 w-4" />
+            {deleting ? 'Deleting...' : 'Delete Quote'}
           </Button>
         </div>
 
