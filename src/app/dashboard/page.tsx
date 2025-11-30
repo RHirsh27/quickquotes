@@ -8,11 +8,51 @@ import { Plus } from 'lucide-react'
 export const dynamic = 'force-dynamic'
 
 export default async function Dashboard() {
-  const supabase = await createClient()
+  // Check environment variables first
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.error('[Dashboard] Missing Supabase environment variables')
+    console.error('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'MISSING')
+    console.error('NEXT_PUBLIC_SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'MISSING')
+    throw new Error('Missing required Supabase environment variables')
+  }
+
+  let supabase
+  try {
+    supabase = await createClient()
+  } catch (error) {
+    console.error('[Dashboard] Error creating Supabase client:', error)
+    console.error('[Dashboard] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+    throw new Error('Failed to initialize database client')
+  }
   
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) {
+  let user
+  try {
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    
+    if (authError) {
+      console.error('[Dashboard] Error fetching user:', authError)
+      console.error('[Dashboard] Auth error details:', {
+        message: authError.message,
+        status: authError.status,
+      })
+      redirect('/login')
+    }
+    
+    user = authData.user
+    
+    if (!user) {
+      console.warn('[Dashboard] No user found, redirecting to login')
+      redirect('/login')
+    }
+  } catch (error) {
+    console.error('[Dashboard] Error in auth check:', error)
+    console.error('[Dashboard] Auth check error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     redirect('/login')
   }
 
@@ -24,16 +64,33 @@ export default async function Dashboard() {
   let recentQuotes: any[] = []
 
   try {
-    const { data: profile, error: profileError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    
-    if (!profileError && profile) {
-      companyName = profile.company_name || 'User'
-    } else {
-      console.error('Error fetching profile:', profileError)
+    // Fetch user profile
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      
+      if (profileError) {
+        console.error('[Dashboard] Error fetching user profile:', profileError)
+        console.error('[Dashboard] Profile error details:', {
+          message: profileError.message,
+          code: profileError.code,
+          details: profileError.details,
+          hint: profileError.hint,
+        })
+      } else if (profile) {
+        companyName = profile.company_name || profile.full_name || 'User'
+      } else {
+        console.warn('[Dashboard] No profile found for user:', user.id)
+      }
+    } catch (error) {
+      console.error('[Dashboard] Exception fetching profile:', error)
+      console.error('[Dashboard] Profile exception details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      })
     }
 
     // Get user's primary team
@@ -41,55 +98,109 @@ export default async function Dashboard() {
     try {
       // Call the RPC function to get primary team
       const { data: primaryTeamId, error: teamError } = await supabase.rpc('get_user_primary_team')
-      if (!teamError && primaryTeamId) {
-        teamId = primaryTeamId
-      } else {
-        console.error('Error fetching primary team:', teamError)
+      
+      if (teamError) {
+        console.error('[Dashboard] Error fetching primary team via RPC:', teamError)
+        console.error('[Dashboard] Team RPC error details:', {
+          message: teamError.message,
+          code: teamError.code,
+          details: teamError.details,
+          hint: teamError.hint,
+        })
+        
         // Fallback: try to get team from team_members
-        const { data: teamMemberData } = await supabase
-          .from('team_members')
-          .select('team_id')
-          .eq('user_id', user.id)
-          .eq('role', 'owner')
-          .limit(1)
-          .single()
-        if (teamMemberData) {
-          teamId = teamMemberData.team_id
+        try {
+          const { data: teamMemberData, error: teamMemberError } = await supabase
+            .from('team_members')
+            .select('team_id')
+            .eq('user_id', user.id)
+            .eq('role', 'owner')
+            .limit(1)
+            .single()
+          
+          if (teamMemberError) {
+            console.error('[Dashboard] Error fetching team member (fallback):', teamMemberError)
+          } else if (teamMemberData) {
+            teamId = teamMemberData.team_id
+            console.log('[Dashboard] Found team via fallback method:', teamId)
+          }
+        } catch (fallbackError) {
+          console.error('[Dashboard] Exception in team member fallback:', fallbackError)
         }
+      } else if (primaryTeamId) {
+        teamId = primaryTeamId
+        console.log('[Dashboard] Found primary team via RPC:', teamId)
+      } else {
+        console.warn('[Dashboard] No primary team found for user:', user.id)
       }
     } catch (error) {
-      console.error('Error getting team ID:', error)
+      console.error('[Dashboard] Exception getting team ID:', error)
+      console.error('[Dashboard] Team ID exception details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      })
     }
 
     // Fetch stats - use team_id if available, otherwise fallback to user_id
-    const quotesQuery = supabase
-      .from('quotes')
-      .select('id, status, total, created_at, quote_number, customers(name)')
-      .order('created_at', { ascending: false })
-    
-    if (teamId) {
-      quotesQuery.eq('team_id', teamId)
-    } else {
-      // Fallback to user_id if no team found
-      quotesQuery.eq('user_id', user.id)
-    }
-    
-    const { data: quotesData, error: quotesError } = await quotesQuery
+    try {
+      const quotesQuery = supabase
+        .from('quotes')
+        .select('id, status, total, created_at, quote_number, customers(name)')
+        .order('created_at', { ascending: false })
+      
+      if (teamId) {
+        quotesQuery.eq('team_id', teamId)
+      } else {
+        // Fallback to user_id if no team found
+        quotesQuery.eq('user_id', user.id)
+      }
+      
+      const { data: quotesData, error: quotesError } = await quotesQuery
 
-    if (!quotesError && quotesData) {
-      totalQuotes = quotesData.length
-      activeQuotes = quotesData.filter(q => q.status === 'sent' || q.status === 'draft').length
-      totalRevenue = quotesData
-        .filter(q => q.status === 'accepted')
-        .reduce((sum, q) => sum + (q.total || 0), 0)
-      recentQuotes = quotesData.slice(0, 5)
-    } else {
-      console.error('Error fetching quotes for dashboard stats:', quotesError)
+      if (quotesError) {
+        console.error('[Dashboard] Error fetching quotes:', quotesError)
+        console.error('[Dashboard] Quotes error details:', {
+          message: quotesError.message,
+          code: quotesError.code,
+          details: quotesError.details,
+          hint: quotesError.hint,
+        })
+      } else if (quotesData) {
+        totalQuotes = quotesData.length
+        activeQuotes = quotesData.filter(q => q.status === 'sent' || q.status === 'draft').length
+        totalRevenue = quotesData
+          .filter(q => q.status === 'accepted')
+          .reduce((sum, q) => sum + (Number(q.total) || 0), 0)
+        recentQuotes = quotesData.slice(0, 5).map(q => ({
+          ...q,
+          total: Number(q.total) || 0,
+        }))
+        console.log('[Dashboard] Successfully fetched quotes:', {
+          total: totalQuotes,
+          active: activeQuotes,
+          revenue: totalRevenue,
+          recent: recentQuotes.length,
+        })
+      } else {
+        console.warn('[Dashboard] No quotes data returned (null or undefined)')
+      }
+    } catch (error) {
+      console.error('[Dashboard] Exception fetching quotes:', error)
+      console.error('[Dashboard] Quotes exception details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      })
     }
 
   } catch (error) {
-    // Table might not exist yet - that's okay, use default
-    console.log('Dashboard data fetching error:', error)
+    // Catch-all for any unexpected errors
+    console.error('[Dashboard] Unexpected error in data fetching:', error)
+    console.error('[Dashboard] Unexpected error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : typeof error,
+    })
+    // Don't throw - allow page to render with default values
   }
 
   return (
