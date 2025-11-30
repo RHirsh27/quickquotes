@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Trash2, Plus, User, ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import type { Customer, ServicePreset, QuoteLineItem } from '@/lib/types'
+import toast from 'react-hot-toast'
 
 // Line Item type for UI state (temporary ID)
 type LineItemState = {
@@ -119,30 +120,30 @@ export default function NewQuotePage() {
   const handleSave = async (status: 'draft' | 'sent') => {
     // Validation
     if (mode === 'select_customer' && !selectedCustomerId) {
-      alert('Please select a customer')
+      toast.error('Please select a customer')
       return
     }
     if (mode === 'new_customer' && !newCustomer.name.trim()) {
-      alert('Customer name is required')
+      toast.error('Customer name is required')
       return
     }
     if (items.length === 0) {
-      alert('Add at least one item')
+      toast.error('Add at least one item')
       return
     }
 
     // Validate line items have required data
     for (const item of items) {
       if (!item.label.trim()) {
-        alert('All line items must have a label/description')
+        toast.error('All line items must have a label/description')
         return
       }
       if (item.quantity <= 0) {
-        alert('All line items must have a quantity greater than 0')
+        toast.error('All line items must have a quantity greater than 0')
         return
       }
       if (item.unit_price < 0) {
-        alert('All line items must have a valid price')
+        toast.error('All line items must have a valid price')
         return
       }
     }
@@ -152,7 +153,7 @@ export default function NewQuotePage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        alert('You must be logged in')
+        toast.error('You must be logged in')
         setLoading(false)
         return
       }

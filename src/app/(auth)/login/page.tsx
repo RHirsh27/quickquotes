@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
 import { Building2, MapPin, User, Mail, Lock, Phone } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false)
@@ -48,15 +49,16 @@ export default function AuthPage() {
           }
         })
         if (error) throw error
-        alert('Account created! Please check your email to confirm.')
+        toast.success('Account created! Please check your email to confirm.')
       } else {
         // LOGIN FLOW
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
+        toast.success('Welcome back!')
         window.location.href = '/dashboard'
       }
     } catch (error: any) {
-      alert(error.message)
+      toast.error(error.message || 'An error occurred')
     } finally {
       setLoading(false)
     }
@@ -252,6 +254,14 @@ export default function AuthPage() {
             <Button type="submit" className="w-full mt-4 flex justify-center py-3" disabled={loading}>
               {loading ? 'Processing...' : isSignUp ? 'Create Professional Account' : 'Sign In'}
             </Button>
+
+            {!isSignUp && (
+              <div className="mt-4 text-center">
+                <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                  Forgot your password?
+                </Link>
+              </div>
+            )}
           </form>
         </div>
       </div>

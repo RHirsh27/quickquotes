@@ -8,6 +8,7 @@ import { ChevronLeft, Download, Share2, Printer, Mail, MessageCircle } from 'luc
 import Link from 'next/link'
 import { QuotePDF } from '@/components/quotes/QuotePDF'
 import dynamic from 'next/dynamic'
+import toast from 'react-hot-toast'
 
 // Dynamically import PDF to avoid server-side errors
 const PDFDownloadLink = dynamic(
@@ -91,7 +92,7 @@ export default function QuoteDetailsPage() {
     } else {
       // Fallback: Copy to clipboard
       navigator.clipboard.writeText(window.location.href)
-      alert('Link copied to clipboard!')
+      toast.success('Link copied to clipboard!')
     }
   }
 
