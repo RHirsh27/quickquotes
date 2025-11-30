@@ -26,6 +26,7 @@ export default function QuoteDetailsPage() {
   const [customer, setCustomer] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
 
   useEffect(() => {
     async function fetchQuoteData() {
@@ -65,13 +66,14 @@ export default function QuoteDetailsPage() {
         .select('*')
         .eq('id', quoteData.user_id)
         .single()
-      setProfile(userData)
+          setProfile(userData)
 
-      setLoading(false)
-    }
+          setInitialLoading(false)
+          setLoading(false)
+        }
 
-    if (id) fetchQuoteData()
-  }, [id])
+        if (id) fetchQuoteData()
+      }, [id])
 
   // --- ACTIONS ---
 
@@ -111,7 +113,16 @@ export default function QuoteDetailsPage() {
     window.location.href = `sms:${customer.phone || ''}?&body=${body}`
   }
 
-  if (loading) return <div className="p-8 text-center">Loading quote details...</div>
+      if (initialLoading) {
+        return (
+          <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+              <p className="text-gray-600">Loading quote details...</p>
+            </div>
+          </div>
+        )
+      }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 print:bg-white print:pb-0">

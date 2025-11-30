@@ -1,12 +1,28 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
 import { Building2, MapPin, User, Mail, Lock, Phone } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { sanitizeString, sanitizeEmail, sanitizePhone } from '@/lib/utils/sanitize'
+import { isValidEmail, isValidPhone, isRequired } from '@/lib/utils/validation'
+import { createThrottledSubmit } from '@/lib/utils/rateLimit'
+import { PasswordStrength } from '@/components/ui/PasswordStrength'
+
+interface FormErrors {
+  email?: string
+  password?: string
+  fullName?: string
+  companyName?: string
+  phone?: string
+  address?: string
+  city?: string
+  state?: string
+  zip?: string
+}
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false)
@@ -27,42 +43,151 @@ export default function AuthPage() {
     zip: ''
   })
 
+  // Validation Errors
+  const [errors, setErrors] = useState<FormErrors>({})
+
+  // Validate on change
+  useEffect(() => {
+    const newErrors: FormErrors = {}
+    
+    if (email && !isValidEmail(email)) {
+      newErrors.email = 'Please enter a valid email address'
+    }
+    
+    if (isSignUp) {
+      if (formData.fullName && !isRequired(formData.fullName)) {
+        newErrors.fullName = 'Full name is required'
+      }
+      if (formData.companyName && !isRequired(formData.companyName)) {
+        newErrors.companyName = 'Company name is required'
+      }
+      if (formData.phone && !isValidPhone(formData.phone)) {
+        newErrors.phone = 'Please enter a valid phone number'
+      }
+    }
+    
+    setErrors(newErrors)
+  }, [email, password, formData, isSignUp])
+
+  // Throttled submit handler
+  const handleAuthThrottled = createThrottledSubmit(
+    async (email: string, password: string, formData: any, isSignUp: boolean) => {
+      setLoading(true)
+      
+      try {
+        // Sanitize inputs
+        const sanitizedEmail = sanitizeEmail(email)
+        const sanitizedPassword = sanitizeString(password)
+        
+        if (isSignUp) {
+          // Validate all required fields
+          const validationErrors: FormErrors = {}
+          
+          if (!isRequired(sanitizedEmail)) {
+            validationErrors.email = 'Email is required'
+          } else if (!isValidEmail(sanitizedEmail)) {
+            validationErrors.email = 'Please enter a valid email address'
+          }
+          
+          if (!isRequired(sanitizedPassword)) {
+            validationErrors.password = 'Password is required'
+          } else if (sanitizedPassword.length < 6) {
+            validationErrors.password = 'Password must be at least 6 characters'
+          }
+          
+          if (!isRequired(formData.fullName)) {
+            validationErrors.fullName = 'Full name is required'
+          }
+          
+          if (!isRequired(formData.companyName)) {
+            validationErrors.companyName = 'Company name is required'
+          }
+          
+          if (!isRequired(formData.phone)) {
+            validationErrors.phone = 'Phone is required'
+          } else if (!isValidPhone(formData.phone)) {
+            validationErrors.phone = 'Please enter a valid phone number'
+          }
+          
+          if (!isRequired(formData.address)) {
+            validationErrors.address = 'Address is required'
+          }
+          
+          if (!isRequired(formData.city)) {
+            validationErrors.city = 'City is required'
+          }
+          
+          if (!isRequired(formData.state)) {
+            validationErrors.state = 'State is required'
+          }
+          
+          if (!isRequired(formData.zip)) {
+            validationErrors.zip = 'Zip code is required'
+          }
+          
+          if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors)
+            setLoading(false)
+            return
+          }
+
+          // REGISTER FLOW
+          const { error } = await supabase.auth.signUp({ 
+            email: sanitizedEmail, 
+            password: sanitizedPassword,
+            options: { 
+              data: { 
+                full_name: sanitizeString(formData.fullName),
+                company_name: sanitizeString(formData.companyName),
+                phone: sanitizePhone(formData.phone),
+                address_line_1: sanitizeString(formData.address),
+                city: sanitizeString(formData.city),
+                state: sanitizeString(formData.state),
+                postal_code: sanitizeString(formData.zip)
+              } 
+            }
+          })
+          if (error) throw error
+          toast.success('Account created! Please check your email to confirm.')
+        } else {
+          // LOGIN FLOW
+          if (!isRequired(sanitizedEmail)) {
+            setErrors({ email: 'Email is required' })
+            setLoading(false)
+            return
+          }
+          if (!isValidEmail(sanitizedEmail)) {
+            setErrors({ email: 'Please enter a valid email address' })
+            setLoading(false)
+            return
+          }
+          if (!isRequired(sanitizedPassword)) {
+            setErrors({ password: 'Password is required' })
+            setLoading(false)
+            return
+          }
+
+          const { error } = await supabase.auth.signInWithPassword({ 
+            email: sanitizedEmail, 
+            password: sanitizedPassword 
+          })
+          if (error) throw error
+          toast.success('Welcome back!')
+          window.location.href = '/dashboard'
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'An error occurred')
+      } finally {
+        setLoading(false)
+      }
+    },
+    'auth-submit',
+    { maxAttempts: 5, windowMs: 60000 }
+  )
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    
-    try {
-      if (isSignUp) {
-        // REGISTER FLOW
-        const { error } = await supabase.auth.signUp({ 
-          email, 
-          password,
-          options: { 
-            data: { 
-              full_name: formData.fullName,
-              company_name: formData.companyName,
-              phone: formData.phone,
-              address_line_1: formData.address,
-              city: formData.city,
-              state: formData.state,
-              postal_code: formData.zip
-            } 
-          }
-        })
-        if (error) throw error
-        toast.success('Account created! Please check your email to confirm.')
-      } else {
-        // LOGIN FLOW
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) throw error
-        toast.success('Welcome back!')
-        window.location.href = '/dashboard'
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'An error occurred')
-    } finally {
-      setLoading(false)
-    }
+    await handleAuthThrottled(email, password, formData, isSignUp)
   }
 
   return (
@@ -87,14 +212,20 @@ export default function AuthPage() {
             <button
               type="button"
               className={`flex-1 pb-4 text-sm font-medium ${!isSignUp ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => setIsSignUp(false)}
+              onClick={() => {
+                setIsSignUp(false)
+                setErrors({})
+              }}
             >
               Log In
             </button>
             <button
               type="button"
               className={`flex-1 pb-4 text-sm font-medium ${isSignUp ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => setIsSignUp(true)}
+              onClick={() => {
+                setIsSignUp(true)
+                setErrors({})
+              }}
             >
               Create Account
             </button>
@@ -112,12 +243,25 @@ export default function AuthPage() {
                 <input
                   type="email"
                   required
-                  className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border"
+                  className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border transition-colors ${
+                    errors.email ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                  }`}
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (errors.email) {
+                      setErrors({ ...errors, email: undefined })
+                    }
+                  }}
+                  onBlur={() => {
+                    if (email && !isValidEmail(email)) {
+                      setErrors({ ...errors, email: 'Please enter a valid email address' })
+                    }
+                  }}
                 />
               </div>
+              {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
             </div>
 
             <div>
@@ -129,12 +273,21 @@ export default function AuthPage() {
                 <input
                   type="password"
                   required
-                  className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border"
+                  className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border transition-colors ${
+                    errors.password ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                  }`}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    if (errors.password) {
+                      setErrors({ ...errors, password: undefined })
+                    }
+                  }}
                 />
               </div>
+              {isSignUp && password && <PasswordStrength password={password} />}
+              {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
             </div>
 
             {/* EXTENDED FIELDS (Only for Sign Up) */}
@@ -159,11 +312,24 @@ export default function AuthPage() {
                       <input
                         type="text"
                         required
-                        className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border"
+                        className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border transition-colors ${
+                          errors.fullName ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                        }`}
                         value={formData.fullName}
-                        onChange={(e) => setFormData({...formData, fullName: e.target.value})}
+                        onChange={(e) => {
+                          setFormData({...formData, fullName: e.target.value})
+                          if (errors.fullName) {
+                            setErrors({ ...errors, fullName: undefined })
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!isRequired(formData.fullName)) {
+                            setErrors({ ...errors, fullName: 'Full name is required' })
+                          }
+                        }}
                       />
                     </div>
+                    {errors.fullName && <p className="mt-1 text-sm text-red-500">{errors.fullName}</p>}
                   </div>
 
                   <div>
@@ -176,11 +342,24 @@ export default function AuthPage() {
                         type="text"
                         required
                         placeholder="e.g. Joe's Plumbing"
-                        className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border"
+                        className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border transition-colors ${
+                          errors.companyName ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                        }`}
                         value={formData.companyName}
-                        onChange={(e) => setFormData({...formData, companyName: e.target.value})}
+                        onChange={(e) => {
+                          setFormData({...formData, companyName: e.target.value})
+                          if (errors.companyName) {
+                            setErrors({ ...errors, companyName: undefined })
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!isRequired(formData.companyName)) {
+                            setErrors({ ...errors, companyName: 'Company name is required' })
+                          }
+                        }}
                       />
                     </div>
+                    {errors.companyName && <p className="mt-1 text-sm text-red-500">{errors.companyName}</p>}
                   </div>
 
                   <div>
@@ -190,13 +369,28 @@ export default function AuthPage() {
                         <Phone className="h-5 w-5 text-gray-400" />
                       </div>
                       <input
-                        type="text"
+                        type="tel"
                         required
-                        className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border"
+                        className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border transition-colors ${
+                          errors.phone ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                        }`}
                         value={formData.phone}
-                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        onChange={(e) => {
+                          setFormData({...formData, phone: e.target.value})
+                          if (errors.phone) {
+                            setErrors({ ...errors, phone: undefined })
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!isRequired(formData.phone)) {
+                            setErrors({ ...errors, phone: 'Phone is required' })
+                          } else if (!isValidPhone(formData.phone)) {
+                            setErrors({ ...errors, phone: 'Please enter a valid phone number' })
+                          }
+                        }}
                       />
                     </div>
+                    {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone}</p>}
                   </div>
 
                   <div>
@@ -208,11 +402,24 @@ export default function AuthPage() {
                       <input
                         type="text"
                         required
-                        className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border"
+                        className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2.5 border transition-colors ${
+                          errors.address ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                        }`}
                         value={formData.address}
-                        onChange={(e) => setFormData({...formData, address: e.target.value})}
+                        onChange={(e) => {
+                          setFormData({...formData, address: e.target.value})
+                          if (errors.address) {
+                            setErrors({ ...errors, address: undefined })
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!isRequired(formData.address)) {
+                            setErrors({ ...errors, address: 'Address is required' })
+                          }
+                        }}
                       />
                     </div>
+                    {errors.address && <p className="mt-1 text-sm text-red-500">{errors.address}</p>}
                   </div>
 
                   <div className="grid grid-cols-6 gap-3">
@@ -221,30 +428,69 @@ export default function AuthPage() {
                       <input 
                         type="text" 
                         required 
-                        className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm" 
+                        className={`mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm transition-colors ${
+                          errors.city ? 'border-red-500' : ''
+                        }`}
                         value={formData.city} 
-                        onChange={(e) => setFormData({...formData, city: e.target.value})} 
+                        onChange={(e) => {
+                          setFormData({...formData, city: e.target.value})
+                          if (errors.city) {
+                            setErrors({ ...errors, city: undefined })
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!isRequired(formData.city)) {
+                            setErrors({ ...errors, city: 'City is required' })
+                          }
+                        }}
                       />
+                      {errors.city && <p className="mt-1 text-xs text-red-500">{errors.city}</p>}
                     </div>
                     <div className="col-span-1">
                       <label className="block text-xs font-medium text-gray-700">State</label>
                       <input 
                         type="text" 
                         required 
-                        className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm" 
+                        className={`mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm transition-colors ${
+                          errors.state ? 'border-red-500' : ''
+                        }`}
                         value={formData.state} 
-                        onChange={(e) => setFormData({...formData, state: e.target.value})} 
+                        onChange={(e) => {
+                          setFormData({...formData, state: e.target.value})
+                          if (errors.state) {
+                            setErrors({ ...errors, state: undefined })
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!isRequired(formData.state)) {
+                            setErrors({ ...errors, state: 'State is required' })
+                          }
+                        }}
                       />
+                      {errors.state && <p className="mt-1 text-xs text-red-500">{errors.state}</p>}
                     </div>
                     <div className="col-span-2">
                       <label className="block text-xs font-medium text-gray-700">Zip</label>
                       <input 
                         type="text" 
                         required 
-                        className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm" 
+                        className={`mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm transition-colors ${
+                          errors.zip ? 'border-red-500' : ''
+                        }`}
                         value={formData.zip} 
-                        onChange={(e) => setFormData({...formData, zip: e.target.value})} 
+                        onChange={(e) => {
+                          setFormData({...formData, zip: e.target.value})
+                          if (errors.zip) {
+                            setErrors({ ...errors, zip: undefined })
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!isRequired(formData.zip)) {
+                            setErrors({ ...errors, zip: 'Zip code is required' })
+                          }
+                        }}
                       />
+                      {errors.zip && <p className="mt-1 text-xs text-red-500">{errors.zip}</p>}
                     </div>
                   </div>
 
@@ -253,7 +499,17 @@ export default function AuthPage() {
             )}
 
             <Button type="submit" className="w-full mt-4 flex justify-center py-3" disabled={loading}>
-              {loading ? 'Processing...' : isSignUp ? 'Create Professional Account' : 'Sign In'}
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                isSignUp ? 'Create Professional Account' : 'Sign In'
+              )}
             </Button>
 
             {!isSignUp && (

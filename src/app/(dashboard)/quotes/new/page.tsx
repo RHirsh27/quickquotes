@@ -5,10 +5,14 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui'
 import { Input } from '@/components/ui/input'
-import { Trash2, Plus, User, ChevronLeft } from 'lucide-react'
+import { Trash2, Plus, User, ChevronLeft, UserPlus } from 'lucide-react'
 import Link from 'next/link'
 import type { Customer, ServicePreset, QuoteLineItem } from '@/lib/types'
 import toast from 'react-hot-toast'
+import { sanitizeString, sanitizeEmail, sanitizePhone, sanitizeNumber } from '@/lib/utils/sanitize'
+import { isValidEmail, isValidPhone, isPositiveNumber, isNonNegativeNumber } from '@/lib/utils/validation'
+import { LoadingButton } from '@/components/ui/LoadingButton'
+import { createThrottledSubmit } from '@/lib/utils/rateLimit'
 
 // Line Item type for UI state (temporary ID)
 type LineItemState = {
@@ -167,17 +171,36 @@ export default function NewQuotePage() {
       }
 
       if (mode === 'new_customer') {
+        // Sanitize customer data
+        const sanitizedCustomer = {
+          name: sanitizeString(newCustomer.name),
+          phone: newCustomer.phone ? sanitizePhone(newCustomer.phone) : null,
+          email: newCustomer.email ? sanitizeEmail(newCustomer.email) : null,
+          address_line_1: newCustomer.address_line_1 ? sanitizeString(newCustomer.address_line_1) : null,
+          city: newCustomer.city ? sanitizeString(newCustomer.city) : null,
+          state: newCustomer.state ? sanitizeString(newCustomer.state) : null,
+          postal_code: newCustomer.postal_code ? sanitizeString(newCustomer.postal_code) : null
+        }
+
+        // Validate email if provided
+        if (sanitizedCustomer.email && !isValidEmail(sanitizedCustomer.email)) {
+          toast.error('Please enter a valid email address')
+          setLoading(false)
+          return
+        }
+
+        // Validate phone if provided
+        if (sanitizedCustomer.phone && !isValidPhone(sanitizedCustomer.phone)) {
+          toast.error('Please enter a valid phone number')
+          setLoading(false)
+          return
+        }
+
         const { data: newCust, error: custError } = await supabase
           .from('customers')
           .insert({
             user_id: user.id,
-            name: newCustomer.name.trim(),
-            phone: newCustomer.phone || null,
-            email: newCustomer.email || null,
-            address_line_1: newCustomer.address_line_1 || null,
-            city: newCustomer.city || null,
-            state: newCustomer.state || null,
-            postal_code: newCustomer.postal_code || null
+            ...sanitizedCustomer
           })
           .select()
           .single()
@@ -212,13 +235,13 @@ export default function NewQuotePage() {
 
       if (quoteError) throw quoteError
 
-      // 3. Create Line Items
+      // 3. Create Line Items (with sanitization)
       const lineItemsData: Omit<QuoteLineItem, 'id'>[] = items.map((item, index) => ({
         quote_id: quote.id,
-        label: item.label.trim() || 'Service',
-        description: item.description.trim() || null,
-        quantity: Number(item.quantity) || 1,
-        unit_price: Number(item.unit_price) || 0,
+        label: sanitizeString(item.label) || 'Service',
+        description: item.description ? sanitizeString(item.description) : null,
+        quantity: Number(sanitizeNumber(String(item.quantity))) || 1,
+        unit_price: Number(sanitizeNumber(String(item.unit_price))) || 0,
         taxable: Boolean(item.taxable),
         position: Number(index) || 0
       }))
@@ -232,6 +255,7 @@ export default function NewQuotePage() {
       if (linesError) throw linesError
 
       // Success! Redirect to dashboard
+      toast.success(`Quote ${status === 'draft' ? 'saved as draft' : 'sent'} successfully!`)
       router.push('/dashboard')
       
     } catch (error: any) {
@@ -242,7 +266,7 @@ export default function NewQuotePage() {
         hint: error.hint,
         code: error.code
       })
-      alert(`Error saving quote: ${error.message || 'Unknown error'}\n\nCheck console for details.`)
+      toast.error(`Error saving quote: ${error.message || 'Unknown error'}`)
     } finally {
       setLoading(false)
     }

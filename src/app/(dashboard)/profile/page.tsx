@@ -2,14 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui'
+import { Button, LoadingButton, LoadingSpinner } from '@/components/ui'
 import { Input } from '@/components/ui/input'
 import { Save, Building2 } from 'lucide-react'
+import { sanitizeString, sanitizePhone, sanitizeEmail } from '@/lib/utils/sanitize'
+import { isValidEmail, isValidPhone } from '@/lib/utils/validation'
 
 export default function ProfilePage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   
   const [formData, setFormData] = useState({
     full_name: '',
@@ -48,6 +52,7 @@ export default function ProfilePage() {
           postal_code: data.postal_code || ''
         })
       }
+      setInitialLoading(false)
     }
     getProfile()
   }, [supabase])
@@ -90,6 +95,17 @@ export default function ProfilePage() {
       setMessage({ type: 'success', text: 'Profile updated successfully!' })
     }
     setLoading(false)
+  }
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <LoadingSpinner size="lg" className="mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -165,10 +181,15 @@ export default function ProfilePage() {
             </div>
           )}
           
-          <Button type="submit" className="w-full" disabled={loading}>
-            <Save className="mr-2 h-4 w-4" />
-            {loading ? 'Saving...' : 'Save Changes'}
-          </Button>
+              <LoadingButton
+                type="submit"
+                className="w-full"
+                loading={loading}
+                loadingText="Saving..."
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Save Changes
+              </LoadingButton>
         </form>
       </div>
     </div>

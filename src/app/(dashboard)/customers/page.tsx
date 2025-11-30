@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Search, User, MapPin, Phone } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui'
 import type { Customer } from '@/lib/types'
 
 export default function CustomersPage() {
@@ -60,7 +61,12 @@ export default function CustomersPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-10 text-gray-500">Loading customers...</div>
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <LoadingSpinner size="lg" className="mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Loading customers...</p>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredCustomers.length === 0 ? (

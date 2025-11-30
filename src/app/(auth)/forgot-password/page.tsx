@@ -4,34 +4,56 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui'
 import { Input } from '@/components/ui/input'
+import { LoadingButton } from '@/components/ui/LoadingButton'
 import { Mail, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { sanitizeEmail } from '@/lib/utils/sanitize'
+import { isValidEmail } from '@/lib/utils/validation'
+import { createThrottledSubmit } from '@/lib/utils/rateLimit'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
+  const [emailError, setEmailError] = useState<string>()
   const supabase = createClient()
+
+  const handleResetThrottled = createThrottledSubmit(
+    async (email: string) => {
+      setLoading(true)
+
+      try {
+        const sanitizedEmail = sanitizeEmail(email)
+
+        if (!isValidEmail(sanitizedEmail)) {
+          setEmailError('Please enter a valid email address')
+          setLoading(false)
+          return
+        }
+
+        const { error } = await supabase.auth.resetPasswordForEmail(sanitizedEmail, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        })
+
+        if (error) throw error
+
+        setSent(true)
+        toast.success('Password reset email sent! Check your inbox.')
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to send reset email')
+      } finally {
+        setLoading(false)
+      }
+    },
+    'forgot-password',
+    { maxAttempts: 3, windowMs: 60000 }
+  )
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
-
-      if (error) throw error
-
-      setSent(true)
-      toast.success('Password reset email sent! Check your inbox.')
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to send reset email')
-    } finally {
-      setLoading(false)
-    }
+    setEmailError(undefined)
+    await handleResetThrottled(email)
   }
 
   if (sent) {
@@ -78,13 +100,27 @@ export default function ForgotPasswordPage() {
               required
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                if (emailError) setEmailError(undefined)
+              }}
+              onBlur={() => {
+                if (email && !isValidEmail(email)) {
+                  setEmailError('Please enter a valid email address')
+                }
+              }}
               disabled={loading}
+              error={emailError}
             />
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Sending...' : 'Send Reset Link'}
-            </Button>
+            <LoadingButton
+              type="submit"
+              className="w-full"
+              loading={loading}
+              loadingText="Sending..."
+            >
+              Send Reset Link
+            </LoadingButton>
           </form>
 
           <div className="mt-6 text-center">

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Plus, ChevronRight, FileText } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { Button, LoadingSpinner } from '@/components/ui'
 import type { Quote } from '@/lib/types'
 
 type QuoteWithCustomer = Quote & {
@@ -68,7 +68,12 @@ export default function QuotesHistoryPage() {
 
       <div className="space-y-3">
         {loading ? (
-          <div className="text-center py-10 text-gray-500">Loading quotes...</div>
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <LoadingSpinner size="lg" className="mx-auto mb-4 text-blue-600" />
+              <p className="text-gray-600">Loading quotes...</p>
+            </div>
+          </div>
         ) : quotes.length === 0 ? (
           <div className="text-center py-10 bg-white rounded-xl border border-dashed border-gray-300">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />

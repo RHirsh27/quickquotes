@@ -5,9 +5,14 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui'
 import { Input } from '@/components/ui/input'
+import { LoadingButton } from '@/components/ui/LoadingButton'
+import { PasswordStrength } from '@/components/ui/PasswordStrength'
 import { Lock, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { sanitizeString } from '@/lib/utils/sanitize'
+import { validatePassword } from '@/lib/utils/validation'
+import { createThrottledSubmit } from '@/lib/utils/rateLimit'
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
@@ -23,6 +28,47 @@ export default function ResetPasswordPage() {
     // No need to validate the hash here - let Supabase handle it
   }, [])
 
+  const handleResetThrottled = createThrottledSubmit(
+    async (password: string, confirmPassword: string) => {
+      setLoading(true)
+
+      try {
+        // Sanitize inputs
+        const sanitizedPassword = sanitizeString(password)
+        const sanitizedConfirm = sanitizeString(confirmPassword)
+
+        // Validate password
+        const passwordValidation = validatePassword(sanitizedPassword)
+        if (!passwordValidation.valid) {
+          toast.error('Password does not meet requirements')
+          setLoading(false)
+          return
+        }
+
+        if (sanitizedPassword !== sanitizedConfirm) {
+          toast.error('Passwords do not match')
+          setLoading(false)
+          return
+        }
+
+        const { error } = await supabase.auth.updateUser({
+          password: sanitizedPassword,
+        })
+
+        if (error) throw error
+
+        toast.success('Password updated successfully!')
+        router.push('/dashboard')
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to reset password')
+      } finally {
+        setLoading(false)
+      }
+    },
+    'reset-password',
+    { maxAttempts: 3, windowMs: 60000 }
+  )
+
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -36,22 +82,7 @@ export default function ResetPasswordPage() {
       return
     }
 
-    setLoading(true)
-
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-      })
-
-      if (error) throw error
-
-      toast.success('Password updated successfully!')
-      router.push('/dashboard')
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to reset password')
-    } finally {
-      setLoading(false)
-    }
+    await handleResetThrottled(password, confirmPassword)
   }
 
   return (
@@ -69,15 +100,18 @@ export default function ResetPasswordPage() {
           </div>
 
           <form onSubmit={handleReset} className="space-y-4">
-            <Input
-              type="password"
-              label="New Password"
-              required
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-            />
+            <div>
+              <Input
+                type="password"
+                label="New Password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+              />
+              {password && <PasswordStrength password={password} />}
+            </div>
 
             <Input
               type="password"
@@ -87,11 +121,17 @@ export default function ResetPasswordPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loading}
+              error={confirmPassword && password !== confirmPassword ? 'Passwords do not match' : undefined}
             />
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Updating...' : 'Update Password'}
-            </Button>
+            <LoadingButton
+              type="submit"
+              className="w-full"
+              loading={loading}
+              loadingText="Updating..."
+            >
+              Update Password
+            </LoadingButton>
           </form>
 
           <div className="mt-6 text-center">
