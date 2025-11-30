@@ -55,15 +55,31 @@ export async function POST(request: NextRequest) {
       customerId = customer.id
 
       // Store customer ID in database (create or update subscription record)
-      await supabase
+      // Check if subscription record exists
+      const { data: existingSub } = await supabase
         .from('subscriptions')
-        .upsert({
-          user_id: user.id,
-          stripe_customer_id: customerId,
-          status: 'incomplete',
-        }, {
-          onConflict: 'user_id',
-        })
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (existingSub) {
+        // Update existing record
+        await supabase
+          .from('subscriptions')
+          .update({
+            stripe_customer_id: customerId,
+          })
+          .eq('id', existingSub.id)
+      } else {
+        // Create new record
+        await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: user.id,
+            stripe_customer_id: customerId,
+            status: 'incomplete',
+          })
+      }
     }
 
     // Create checkout session
