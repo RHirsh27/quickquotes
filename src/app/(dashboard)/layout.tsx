@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { BottomNav } from '@/components/layout/BottomNav'
 import Navbar from '@/components/layout/navbar'
 import { DashboardWrapper } from '@/components/layout/DashboardWrapper'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
+
+// Mark this route as dynamic since it uses cookies for authentication
+export const dynamic = 'force-dynamic'
 
 export default async function DashboardLayout({
   children,
