@@ -49,33 +49,66 @@ export async function inviteTeamMember(email: string): Promise<InviteMemberResul
       }
     }
 
-    // Check if user exists in auth.users by checking public.users
-    // Note: In Supabase, we can't directly query auth.users from server actions easily
-    // We'll check if they exist in public.users first
-    // For a more robust solution, you'd use an edge function or admin API
+    // Use database function to find user by email (if function exists)
+    // This function queries auth.users which we can't access directly
+    let foundUserId: string | null = null
     
-    // Try to find user by email in auth.users via a workaround
-    // Since we can't query auth.users directly, we'll check if they're already a team member
-    // and if not, we'll need to use a different approach
-    
-    // For MVP: Check if email exists in any way we can
-    // In production, you'd use Supabase Admin API or an edge function
-    
-    // For now, let's check if there's a user with this email in public.users
-    // But note: public.users doesn't have email, so we need a different approach
-    
-    // Actually, the best approach for MVP is to try to find the user_id from auth.users
-    // But we can't do that from a server action easily without admin API
-    
-    // Let's use a workaround: Check if we can find them by trying to look up their auth user
-    // We'll need to use the Supabase Admin API or create an edge function for this
-    
-    // For MVP simplicity, we'll return an error asking them to sign up first
-    // In production, you'd implement proper user lookup
-    
+    try {
+      const { data: userData, error: findError } = await supabase.rpc('find_user_by_email', {
+        search_email: email.toLowerCase().trim()
+      })
+      
+      if (!findError && userData && userData.length > 0) {
+        foundUserId = userData[0].user_id
+      }
+    } catch (error) {
+      // Function might not exist yet - that's okay, we'll show the error message
+      console.log('find_user_by_email function not found or error:', error)
+    }
+
+    // If user not found, return error
+    if (!foundUserId) {
+      return {
+        success: false,
+        message: 'User not found. Ask them to sign up for a free account first.'
+      }
+    }
+
+    // Check if they're already a team member
+    const { data: existingMember } = await supabase
+      .from('team_members')
+      .select('id')
+      .eq('team_id', primaryTeamId)
+      .eq('user_id', foundUserId)
+      .single()
+
+    if (existingMember) {
+      return {
+        success: false,
+        message: 'User is already a team member.'
+      }
+    }
+
+    // Add them to the team
+    const { error: insertError } = await supabase
+      .from('team_members')
+      .insert({
+        team_id: primaryTeamId,
+        user_id: foundUserId,
+        role: 'member'
+      })
+
+    if (insertError) {
+      return {
+        success: false,
+        message: insertError.message || 'Failed to add member.'
+      }
+    }
+
+    revalidatePath('/settings/team')
     return {
-      success: false,
-      message: 'User not found. Ask them to sign up for a free account first.'
+      success: true,
+      message: 'Member added successfully!'
     }
 
     // If we had proper user lookup, the code would be:
