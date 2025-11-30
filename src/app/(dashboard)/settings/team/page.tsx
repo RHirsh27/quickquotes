@@ -11,6 +11,7 @@ import { sanitizeEmail } from '@/lib/utils/sanitize'
 import { isValidEmail, isRequired } from '@/lib/utils/validation'
 import { getUserPrimaryTeam, getTeamMembers } from '@/lib/supabase/teams'
 import { inviteTeamMember, removeTeamMember } from '@/app/actions/team'
+import { canAddTeamMemberClient, getSubscriptionLimits } from '@/lib/subscriptions'
 
 interface TeamMemberWithUser {
   id: string
@@ -37,6 +38,9 @@ function TeamManagementContent() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteError, setInviteError] = useState<string | undefined>(undefined)
   const [inviting, setInviting] = useState(false)
+  const [subscription, setSubscription] = useState<any>(null)
+  const [teamLimit, setTeamLimit] = useState<{ maxUsers: number; planName: string } | null>(null)
+  const [canAddMember, setCanAddMember] = useState<{ allowed: boolean; reason?: string; currentCount: number; maxUsers: number } | null>(null)
 
   // Fetch team data
   useEffect(() => {

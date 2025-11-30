@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { canAddTeamMember } from '@/lib/subscriptions'
 
 export interface InviteMemberResult {
   success: boolean
@@ -46,6 +47,15 @@ export async function inviteTeamMember(email: string): Promise<InviteMemberResul
       return {
         success: false,
         message: 'Only team owners can invite members.'
+      }
+    }
+
+    // Check subscription limits before allowing invite
+    const limitCheck = await canAddTeamMember(user.id, primaryTeamId)
+    if (!limitCheck.allowed) {
+      return {
+        success: false,
+        message: limitCheck.reason || 'You have reached the limit of your plan. Upgrade to add more seats.'
       }
     }
 
