@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import { sanitizeEmail } from '@/lib/utils/sanitize'
 import { isValidEmail, isRequired } from '@/lib/utils/validation'
 import { getUserPrimaryTeam, getTeamMembers } from '@/lib/supabase/teams'
+import { inviteTeamMember, removeTeamMember } from '@/app/actions/team'
 
 interface TeamMemberWithUser {
   id: string
@@ -119,19 +120,26 @@ function TeamManagementContent() {
     }
 
     try {
-      // For MVP: We can't easily check auth.users from the client
-      // In production, you'd use a server action or edge function
-      // For now, we'll show a helpful error message
-      // 
-      // Note: To properly implement this, you would:
-      // 1. Create a server action that queries auth.users
-      // 2. Or use an edge function
-      // 3. Or create an invite system that sends emails
+      // Use server action to invite member
+      const result = await inviteTeamMember(sanitizedEmail)
       
-      toast.error('User must sign up for a free account first. Please ask them to create an account, then you can add them to the team.')
-      setInviteEmail('')
+      if (result.success) {
+        toast.success(result.message)
+        setInviteEmail('')
+        // Refresh members list
+        const membersData = await getTeamMembers(teamId)
+        setMembers(membersData as TeamMemberWithUser[])
+      } else {
+        toast.error(result.message)
+        setInviteError(result.message)
+      }
+    } catch (error: any) {
+      console.error('Error inviting member:', error)
+      toast.error(error.message || 'Failed to invite member.')
+      setInviteError(error.message || 'Failed to invite member.')
+    } finally {
       setInviting(false)
-      return
+    }
 
       // If we had a way to check auth.users, the logic would be:
       // if (userExists) {
@@ -165,28 +173,20 @@ function TeamManagementContent() {
   const handleRemoveMember = async (memberId: string, memberUserId: string) => {
     if (!teamId) return
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || user.id === memberUserId) {
-      toast.error('You cannot remove yourself from the team.')
-      return
-    }
-
     const confirmed = window.confirm('Are you sure you want to remove this member from the team?')
     if (!confirmed) return
 
     try {
-      const { error } = await supabase
-        .from('team_members')
-        .delete()
-        .eq('id', memberId)
-        .eq('team_id', teamId)
-
-      if (error) throw error
-
-      toast.success('Member removed from team.')
-      // Refresh members list
-      const membersData = await getTeamMembers(teamId)
-      setMembers(membersData as TeamMemberWithUser[])
+      const result = await removeTeamMember(memberId, memberUserId)
+      
+      if (result.success) {
+        toast.success(result.message)
+        // Refresh members list
+        const membersData = await getTeamMembers(teamId)
+        setMembers(membersData as TeamMemberWithUser[])
+      } else {
+        toast.error(result.message)
+      }
     } catch (error: any) {
       console.error('Error removing member:', error)
       toast.error('Failed to remove member.')

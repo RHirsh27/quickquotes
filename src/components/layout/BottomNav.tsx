@@ -2,18 +2,18 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, History, Users, User } from 'lucide-react'
+import { Home, History, Users, User, Settings } from 'lucide-react'
 
 export function BottomNav() {
   const pathname = usePathname()
 
-  const isActive = (path: string) => pathname === path
+  const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/')
 
   const navItems = [
     { label: 'Home', href: '/dashboard', icon: Home },
     { label: 'History', href: '/quotes', icon: History },
     { label: 'Clients', href: '/customers', icon: Users },
-    { label: 'Profile', href: '/profile', icon: User },
+    { label: 'Settings', href: '/settings/team', icon: Settings },
   ]
 
   return (
