@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui'
 import { Building2, MapPin, User, Mail, Lock, Phone } from 'lucide-react'
 import Link from 'next/link'
@@ -24,11 +24,20 @@ interface FormErrors {
   zip?: string
 }
 
-export default function AuthPage() {
+function AuthPageContent() {
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  // Check for auth errors from callback
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (error === 'auth_code_error') {
+      toast.error('Authentication failed. Please try again or request a new confirmation email.')
+    }
+  }, [searchParams])
 
   // Form State
   const [email, setEmail] = useState('')
