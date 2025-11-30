@@ -74,3 +74,14 @@ export interface QuoteLineItem {
   taxable: boolean
   position: number // int - For ordering on PDF
 }
+export interface Subscription {
+  id: string // uuid, PK
+  user_id: string // uuid, FK -> users.id
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
+  status: 'active' | 'canceled' | 'past_due' | 'trialing' | 'incomplete' | 'incomplete_expired' | 'unpaid' | 'paused'
+  plan_id: string | null // Stripe Price ID
+  current_period_end: string | null // timestamp
+  created_at: string
+  updated_at: string
+}
