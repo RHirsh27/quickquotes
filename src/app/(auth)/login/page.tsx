@@ -141,10 +141,15 @@ function AuthPageContent() {
           }
 
           // REGISTER FLOW
+          // Get the base URL for redirect
+          const baseUrl = window.location.origin
+          const redirectTo = `${baseUrl}/auth/callback`
+          
           const { error } = await supabase.auth.signUp({ 
             email: sanitizedEmail, 
             password: sanitizedPassword,
             options: { 
+              emailRedirectTo: redirectTo,
               data: { 
                 full_name: sanitizeString(formData.fullName),
                 company_name: sanitizeString(formData.companyName),

@@ -12,6 +12,7 @@ import { isValidEmail, isRequired } from '@/lib/utils/validation'
 // Removed server-side imports - using browser client directly
 import { inviteTeamMember, removeTeamMember } from '@/app/actions/team'
 import { getSubscriptionLimits } from '@/lib/subscriptions-client'
+import { PRICING_PLANS, getPlanByStripePriceId, getNextPlan, type PlanId } from '@/config/pricing'
 import type { Subscription } from '@/lib/types'
 
 interface TeamMemberWithUser {
@@ -123,18 +124,47 @@ function TeamManagementContent() {
 
         if (!subError && subscriptionData) {
           setSubscription(subscriptionData as Subscription)
-          const limits = getSubscriptionLimits(subscriptionData.plan_id)
-          setTeamLimit(limits)
+          
+          // Get plan from PRICING_PLANS config using Stripe Price ID
+          const currentPlan = getPlanByStripePriceId(subscriptionData.plan_id)
+          
+          if (currentPlan) {
+            const limits = {
+              maxUsers: currentPlan.userLimit,
+              planName: currentPlan.name
+            }
+            setTeamLimit(limits)
 
-          // Check if user can add more members
-          const memberCount = (membersData || []).length
-          const addMemberCheck = {
-            allowed: memberCount < limits.maxUsers,
-            reason: memberCount >= limits.maxUsers ? `You have reached the limit of ${limits.maxUsers} user${limits.maxUsers === 1 ? '' : 's'} for your ${limits.planName} plan. Upgrade to add more seats.` : undefined,
-            currentCount: memberCount,
-            maxUsers: limits.maxUsers
+            // Check if user can add more members
+            const memberCount = (membersData || []).length
+            const canAdd = memberCount < currentPlan.userLimit
+            
+            // Get next plan for upgrade suggestion
+            const nextPlan = getNextPlan(currentPlan.id)
+            const upgradeMessage = nextPlan 
+              ? `Upgrade to ${nextPlan.name} to add more team members.`
+              : 'You have reached the maximum plan limit.'
+            
+            const addMemberCheck = {
+              allowed: canAdd,
+              reason: !canAdd ? `You have reached the limit of ${currentPlan.userLimit} user${currentPlan.userLimit === 1 ? '' : 's'} for your ${currentPlan.name} plan. ${upgradeMessage}` : undefined,
+              currentCount: memberCount,
+              maxUsers: currentPlan.userLimit
+            }
+            setCanAddMember(addMemberCheck)
+          } else {
+            // Fallback to getSubscriptionLimits if plan not found in config
+            const limits = getSubscriptionLimits(subscriptionData.plan_id)
+            setTeamLimit(limits)
+            const memberCount = (membersData || []).length
+            const addMemberCheck = {
+              allowed: memberCount < limits.maxUsers,
+              reason: memberCount >= limits.maxUsers ? `You have reached the limit of ${limits.maxUsers} user${limits.maxUsers === 1 ? '' : 's'} for your ${limits.planName} plan. Upgrade to add more seats.` : undefined,
+              currentCount: memberCount,
+              maxUsers: limits.maxUsers
+            }
+            setCanAddMember(addMemberCheck)
           }
-          setCanAddMember(addMemberCheck)
         } else {
           // No subscription - default to free tier (1 user)
           const limits = { maxUsers: 1, planName: 'Free' }

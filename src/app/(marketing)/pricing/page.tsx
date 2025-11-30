@@ -5,80 +5,45 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui'
 import { Check, Zap, Users, Building2, ArrowRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { loadStripe } from '@stripe/stripe-js'
 import toast from 'react-hot-toast'
+import { getAllPlans, type PricingPlan as ConfigPricingPlan } from '@/config/pricing'
 
-// Stripe Price IDs - Replace these with your actual Stripe Price IDs
-const PRICE_IDS = {
-  solo: process.env.NEXT_PUBLIC_STRIPE_PRICE_SOLO || 'price_solo_placeholder',
-  team: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM || 'price_team_placeholder',
-  business: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS || 'price_business_placeholder',
+// Map plan IDs to icons
+const planIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  SOLO: Zap,
+  TEAM: Users,
+  BUSINESS: Building2,
 }
 
-interface PricingPlan {
-  id: string
-  name: string
-  price: string
-  period: string
-  description: string
-  priceId: string
-  features: string[]
+// Map plan IDs to descriptions
+const planDescriptions: Record<string, string> = {
+  SOLO: 'For the independent owner-operator.',
+  TEAM: 'For growing crews (Up to 3 Users).',
+  BUSINESS: 'For scaling companies (Unlimited).',
+}
+
+// Map plan IDs to CTA text
+const planCTAs: Record<string, string> = {
+  SOLO: 'Start Solo',
+  TEAM: 'Upgrade to Team',
+  BUSINESS: 'Go Unlimited',
+}
+
+// Convert config plans to UI format
+function getPlansForUI(): Array<ConfigPricingPlan & {
   icon: React.ComponentType<{ className?: string }>
-  highlight?: boolean
+  description: string
   cta: string
+  highlight?: boolean
+}> {
+  return getAllPlans().map((plan) => ({
+    ...plan,
+    icon: planIcons[plan.id] || Zap,
+    description: planDescriptions[plan.id] || '',
+    cta: planCTAs[plan.id] || 'Get Started',
+    highlight: plan.label === 'Most Popular',
+  }))
 }
-
-const plans: PricingPlan[] = [
-  {
-    id: 'solo',
-    name: 'Solo Professional',
-    price: '$29',
-    period: '/month',
-    description: 'For the independent owner-operator.',
-    priceId: PRICE_IDS.solo,
-    features: [
-      'Unlimited Quotes',
-      'PDF Exports',
-      'Client History',
-      'Branded Invoices',
-    ],
-    icon: Zap,
-    cta: 'Start Solo',
-  },
-  {
-    id: 'team',
-    name: 'Small Team',
-    price: '$79',
-    period: '/month',
-    description: 'For growing crews (Up to 3 Users).',
-    priceId: PRICE_IDS.team,
-    features: [
-      'Everything in Solo',
-      'Shared Price Book',
-      'Team Dashboard',
-      'Unified Customer List',
-    ],
-    icon: Users,
-    highlight: true,
-    cta: 'Upgrade to Team',
-  },
-  {
-    id: 'business',
-    name: 'Business',
-    price: '$149',
-    period: '/month',
-    description: 'For scaling companies (Unlimited).',
-    priceId: PRICE_IDS.business,
-    features: [
-      'Unlimited Users',
-      'Priority Support',
-      'Dedicated Account Manager',
-      'Everything in Team',
-    ],
-    icon: Building2,
-    cta: 'Go Unlimited',
-  },
-]
 
 export default function PricingPage() {
   const router = useRouter()
@@ -94,7 +59,12 @@ export default function PricingPage() {
     checkAuth()
   }, [supabase])
 
-  const handleSubscribe = async (plan: PricingPlan) => {
+  const handleSubscribe = async (plan: ConfigPricingPlan & {
+    icon: React.ComponentType<{ className?: string }>
+    description: string
+    cta: string
+    highlight?: boolean
+  }) => {
     if (isAuthenticated === null) {
       // Still checking auth status
       return
@@ -103,6 +73,12 @@ export default function PricingPage() {
     if (!isAuthenticated) {
       // Redirect to signup
       router.push('/login')
+      return
+    }
+
+    // Validate that Stripe Price ID is set
+    if (!plan.stripePriceId) {
+      toast.error('This plan is not yet available. Please contact support.')
       return
     }
 
@@ -115,7 +91,7 @@ export default function PricingPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          priceId: plan.priceId,
+          priceId: plan.stripePriceId,
         }),
       })
 
@@ -186,7 +162,7 @@ export default function PricingPage() {
 
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {plans.map((plan) => {
+          {getPlansForUI().map((plan) => {
             const Icon = plan.icon
             const isLoading = loading === plan.id
 
@@ -200,10 +176,10 @@ export default function PricingPage() {
                 }`}
               >
                 {/* Most Popular Badge */}
-                {plan.highlight && (
+                {plan.highlight && plan.label && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                     <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                      Most Popular
+                      {plan.label}
                     </span>
                   </div>
                 )}
@@ -230,9 +206,9 @@ export default function PricingPage() {
                   <div className="mb-6">
                     <div className="flex items-baseline gap-1">
                       <span className="text-4xl font-bold text-gray-900">
-                        {plan.price}
+                        ${plan.price}
                       </span>
-                      <span className="text-gray-600">{plan.period}</span>
+                      <span className="text-gray-600">/{plan.interval}</span>
                     </div>
                   </div>
 
@@ -249,7 +225,7 @@ export default function PricingPage() {
                   {/* CTA Button */}
                   <Button
                     onClick={() => handleSubscribe(plan)}
-                    disabled={isLoading}
+                    disabled={isLoading || !plan.stripePriceId}
                     className={`w-full ${
                       plan.highlight
                         ? 'bg-blue-600 hover:bg-blue-700'

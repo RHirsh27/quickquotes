@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
+import { getPlanByStripePriceId } from '@/config/pricing'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +23,22 @@ export async function POST(request: NextRequest) {
     if (!priceId || typeof priceId !== 'string') {
       return NextResponse.json(
         { error: 'priceId is required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate priceId against PRICING_PLANS config
+    const plan = getPlanByStripePriceId(priceId)
+    if (!plan) {
+      return NextResponse.json(
+        { error: 'Invalid price ID. This plan is not configured.' },
+        { status: 400 }
+      )
+    }
+
+    if (!plan.stripePriceId) {
+      return NextResponse.json(
+        { error: 'This plan is not yet available. Please contact support.' },
         { status: 400 }
       )
     }

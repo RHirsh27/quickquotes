@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { redirect } from 'next/navigation'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -27,14 +26,16 @@ export async function GET(request: Request) {
     if (exchangeError) {
       console.error('Error exchanging code for session:', exchangeError)
       // Redirect to login with error parameter
-      return redirect('/login?error=auth_code_error')
+      const loginUrl = new URL('/login', requestUrl.origin)
+      loginUrl.searchParams.set('error', 'auth_code_error')
+      return NextResponse.redirect(loginUrl.toString())
     }
 
     // Success! Redirect to dashboard
-    return redirect('/dashboard')
+    return NextResponse.redirect(new URL('/dashboard', requestUrl.origin).toString())
   }
 
   // No code and no error - redirect to login
-  return redirect('/login')
+  return NextResponse.redirect(new URL('/login', requestUrl.origin).toString())
 }
 
