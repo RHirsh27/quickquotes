@@ -61,6 +61,19 @@ export default function ProfilePage() {
     e.preventDefault()
     setLoading(true)
     setMessage(null)
+    setErrors({})
+
+    // Validate inputs
+    const newErrors: Record<string, string> = {}
+    if (formData.phone && !isValidPhone(formData.phone)) {
+      newErrors.phone = 'Please enter a valid phone number'
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      setLoading(false)
+      return
+    }
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -69,17 +82,20 @@ export default function ProfilePage() {
       return
     }
 
+    // Sanitize inputs
+    const sanitizedData = {
+      full_name: sanitizeString(formData.full_name) || null,
+      company_name: sanitizeString(formData.company_name) || null,
+      phone: formData.phone ? sanitizePhone(formData.phone) : null,
+      address_line_1: sanitizeString(formData.address_line_1) || null,
+      city: sanitizeString(formData.city) || null,
+      state: sanitizeString(formData.state) || null,
+      postal_code: sanitizeString(formData.postal_code) || null
+    }
+
     const { error } = await supabase
       .from('users')
-      .update({
-        full_name: formData.full_name.trim() || null,
-        company_name: formData.company_name.trim() || null,
-        phone: formData.phone.trim() || null,
-        address_line_1: formData.address_line_1.trim() || null,
-        city: formData.city.trim() || null,
-        state: formData.state.trim() || null,
-        postal_code: formData.postal_code.trim() || null
-      })
+      .update(sanitizedData)
       .eq('id', user.id)
 
     if (error) {
