@@ -148,7 +148,9 @@ export default function AuthPage() {
             }
           })
           if (error) throw error
-          toast.success('Account created! Please check your email to confirm.')
+          // Redirect to verify email page instead of showing toast
+          router.push('/verify-email')
+          return
         } else {
           // LOGIN FLOW
           if (!isRequired(sanitizedEmail)) {
