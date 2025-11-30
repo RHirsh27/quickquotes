@@ -1,100 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
 import Stripe from 'stripe'
+import { getStripe } from '@/lib/stripe'
+import { createClient } from '@/lib/supabase/server'
 
-// Disable body parsing, we need the raw body for webhook signature verification
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
-export async function POST(request: NextRequest) {
-  const body = await request.text()
-  const signature = request.headers.get('stripe-signature')
+export async function POST(req: NextRequest) {
+  const rawBody = await req.text()
+  const signature = req.headers.get('stripe-signature')
 
   if (!signature) {
-    return NextResponse.json(
-      { error: 'No signature provided' },
-      { status: 400 }
-    )
-  }
-
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
-  if (!webhookSecret) {
-    console.error('STRIPE_WEBHOOK_SECRET is not set')
-    return NextResponse.json(
-      { error: 'Webhook secret not configured' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'No Stripe signature' }, { status: 400 })
   }
 
   let event: Stripe.Event
 
   try {
-    // Verify webhook signature
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
-  } catch (error: any) {
-    console.error('Webhook signature verification failed:', error.message)
-    return NextResponse.json(
-      { error: `Webhook Error: ${error.message}` },
-      { status: 400 }
-    )
+    const stripe = getStripe()
+    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret)
+  } catch (err: any) {
+    console.error(`Webhook signature verification failed: ${err.message}`)
+    return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 })
   }
 
-  // Handle the event
+  const supabase = await createClient()
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        
-        // Only handle subscription checkout sessions
-        if (session.mode === 'subscription' && session.subscription) {
-          const userId = session.metadata?.userId
-          
-          if (!userId) {
-            console.error('No userId in checkout session metadata')
-            break
-          }
-          
-          // Get subscription details from Stripe
-          const subscription = await stripe.subscriptions.retrieve(
-            session.subscription as string,
-            { expand: ['items.data.price.product'] }
-          )
+        const userId = session.metadata?.userId
 
-          const supabase = await createClient()
-          
-          // Check if subscription record exists
-          const { data: existingSub } = await supabase
-            .from('subscriptions')
-            .select('id')
-            .eq('user_id', userId)
-            .single()
+        if (!userId) {
+          console.error('No userId in checkout session metadata')
+          break
+        }
 
-          if (existingSub) {
-            // Update existing record
-            await supabase
-              .from('subscriptions')
-              .update({
-                stripe_customer_id: subscription.customer as string,
-                stripe_subscription_id: subscription.id,
-                status: subscription.status as string,
-                plan_id: subscription.items.data[0]?.price.id || null,
-                current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-              })
-              .eq('id', existingSub.id)
-          } else {
-            // Create new record
-            await supabase
-              .from('subscriptions')
-              .insert({
-                user_id: userId,
-                stripe_customer_id: subscription.customer as string,
-                stripe_subscription_id: subscription.id,
-                status: subscription.status as string,
-                plan_id: subscription.items.data[0]?.price.id || null,
-                current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-              })
-          }
+        // Get subscription details from Stripe
+        const stripe = getStripe()
+        const subscription: Stripe.Subscription = await stripe.subscriptions.retrieve(
+          session.subscription as string,
+          { expand: ['items.data.price.product'] }
+        ) as Stripe.Subscription
+
+        // Update or create subscription record
+        const { error: upsertError } = await supabase
+          .from('subscriptions')
+          .upsert({
+            user_id: userId,
+            stripe_customer_id: subscription.customer as string,
+            stripe_subscription_id: subscription.id,
+            status: subscription.status as string,
+            plan_id: subscription.items.data[0]?.price.id || null,
+            current_period_end: (subscription as any).current_period_end ? new Date((subscription as any).current_period_end * 1000).toISOString() : null,
+          }, {
+            onConflict: 'user_id', // Conflict on user_id to update existing row
+            ignoreDuplicates: false // Ensure update happens
+          })
+
+        if (upsertError) {
+          console.error('Error upserting subscription in webhook:', upsertError)
+          throw upsertError
         }
         break
       }
@@ -103,56 +69,49 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription
         const userId = subscription.metadata?.userId
 
+        // If no userId in metadata, try to get it from existing subscription record
         if (!userId) {
-          console.error('No userId in subscription metadata')
-          break
+          const { data: existingSub } = await supabase
+            .from('subscriptions')
+            .select('user_id')
+            .eq('stripe_subscription_id', subscription.id)
+            .single()
+
+          if (!existingSub) {
+            console.error('No userId found for subscription update')
+            break
+          }
         }
 
-        const supabase = await createClient()
-        
-        // Update subscription record
         await supabase
           .from('subscriptions')
           .update({
             status: subscription.status as string,
             plan_id: subscription.items.data[0]?.price.id || null,
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            current_period_end: (subscription as any).current_period_end ? new Date((subscription as any).current_period_end * 1000).toISOString() : null,
           })
           .eq('stripe_subscription_id', subscription.id)
-        
         break
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
-        const userId = subscription.metadata?.userId
-
-        const supabase = await createClient()
-        
-        // Update subscription status to canceled
-        // Use subscription_id as primary identifier (more reliable than metadata)
         await supabase
           .from('subscriptions')
           .update({
-            status: 'canceled',
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            status: 'canceled', // Explicitly set to canceled
+            current_period_end: (subscription as any).current_period_end ? new Date((subscription as any).current_period_end * 1000).toISOString() : null,
           })
           .eq('stripe_subscription_id', subscription.id)
-        
         break
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        console.warn(`Unhandled event type: ${event.type}`)
     }
-
     return NextResponse.json({ received: true })
   } catch (error: any) {
-    console.error('Error processing webhook:', error)
-    return NextResponse.json(
-      { error: error.message || 'Webhook processing failed' },
-      { status: 500 }
-    )
+    console.error('Error handling webhook event:', error)
+    return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 })
   }
 }
-

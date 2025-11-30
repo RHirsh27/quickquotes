@@ -9,9 +9,10 @@ import { ChevronLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { sanitizeEmail } from '@/lib/utils/sanitize'
 import { isValidEmail, isRequired } from '@/lib/utils/validation'
-import { getUserPrimaryTeam, getTeamMembers } from '@/lib/supabase/teams'
+// Removed server-side imports - using browser client directly
 import { inviteTeamMember, removeTeamMember } from '@/app/actions/team'
-import { canAddTeamMemberClient, getSubscriptionLimits } from '@/lib/subscriptions'
+import { getSubscriptionLimits } from '@/lib/subscriptions-client'
+import type { Subscription } from '@/lib/types'
 
 interface TeamMemberWithUser {
   id: string
@@ -38,9 +39,10 @@ function TeamManagementContent() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteError, setInviteError] = useState<string | undefined>(undefined)
   const [inviting, setInviting] = useState(false)
-  const [subscription, setSubscription] = useState<any>(null)
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [teamLimit, setTeamLimit] = useState<{ maxUsers: number; planName: string } | null>(null)
   const [canAddMember, setCanAddMember] = useState<{ allowed: boolean; reason?: string; currentCount: number; maxUsers: number } | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   // Fetch team data
   useEffect(() => {
@@ -53,9 +55,9 @@ function TeamManagementContent() {
           return
         }
 
-        // Get user's primary team
-        const primaryTeamId = await getUserPrimaryTeam()
-        if (!primaryTeamId) {
+        // Get user's primary team using RPC
+        const { data: primaryTeamId, error: teamRpcError } = await supabase.rpc('get_user_primary_team')
+        if (teamRpcError || !primaryTeamId) {
           toast.error('No team found. Please contact support.')
           setInitialLoading(false)
           return
@@ -77,14 +79,74 @@ function TeamManagementContent() {
           setTeamName(teamData.name)
         }
 
-        // Get team members
-        const membersData = await getTeamMembers(primaryTeamId)
-        setMembers(membersData as TeamMemberWithUser[])
+        // Get team members using browser client
+        const { data: membersData, error: membersError } = await supabase
+          .from('team_members')
+          .select(`
+            *,
+            users:user_id (
+              id,
+              full_name,
+              company_name
+            )
+          `)
+          .eq('team_id', primaryTeamId)
+          .order('created_at', { ascending: true })
+
+        if (membersError) {
+          console.error('Error fetching team members:', membersError)
+          toast.error('Failed to load team members.')
+          setInitialLoading(false)
+          return
+        }
+
+        setMembers((membersData || []) as TeamMemberWithUser[])
 
         // Find current user's role
-        const currentMember = membersData.find((m: any) => m.user_id === user.id)
+        const currentMember = (membersData || []).find((m: any) => m.user_id === user.id)
         if (currentMember) {
           setCurrentUserRole(currentMember.role)
+        }
+
+        // Store current user ID for comparison
+        setCurrentUserId(user.id)
+
+        // Fetch user's subscription
+        const { data: subscriptionData, error: subError } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .in('status', ['active', 'trialing'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (!subError && subscriptionData) {
+          setSubscription(subscriptionData as Subscription)
+          const limits = getSubscriptionLimits(subscriptionData.plan_id)
+          setTeamLimit(limits)
+
+          // Check if user can add more members
+          const memberCount = (membersData || []).length
+          const addMemberCheck = {
+            allowed: memberCount < limits.maxUsers,
+            reason: memberCount >= limits.maxUsers ? `You have reached the limit of ${limits.maxUsers} user${limits.maxUsers === 1 ? '' : 's'} for your ${limits.planName} plan. Upgrade to add more seats.` : undefined,
+            currentCount: memberCount,
+            maxUsers: limits.maxUsers
+          }
+          setCanAddMember(addMemberCheck)
+        } else {
+          // No subscription - default to free tier (1 user)
+          const limits = { maxUsers: 1, planName: 'Free' }
+          setTeamLimit(limits)
+          const memberCount = (membersData || []).length
+          const addMemberCheck = {
+            allowed: memberCount < limits.maxUsers,
+            reason: memberCount >= limits.maxUsers ? `You have reached the limit of ${limits.maxUsers} user${limits.maxUsers === 1 ? '' : 's'} for your ${limits.planName} plan. Upgrade to add more seats.` : undefined,
+            currentCount: memberCount,
+            maxUsers: limits.maxUsers
+          }
+          setCanAddMember(addMemberCheck)
         }
 
       } catch (error: any) {
@@ -110,6 +172,13 @@ function TeamManagementContent() {
       return
     }
 
+    // Check subscription limits client-side
+    if (canAddMember && !canAddMember.allowed) {
+      toast.error(canAddMember.reason || 'Cannot add more members due to plan limits.')
+      setInviting(false)
+      return
+    }
+
     // Sanitize and validate email
     const sanitizedEmail = sanitizeEmail(inviteEmail)
     if (!isRequired(sanitizedEmail)) {
@@ -124,46 +193,41 @@ function TeamManagementContent() {
     }
 
     try {
-      // Use server action to invite member
       const result = await inviteTeamMember(sanitizedEmail)
       
       if (result.success) {
         toast.success(result.message)
         setInviteEmail('')
-        // Refresh members list
-        const membersData = await getTeamMembers(teamId)
-        setMembers(membersData as TeamMemberWithUser[])
+        // Refresh members list using browser client
+        const { data: membersData, error: membersError } = await supabase
+          .from('team_members')
+          .select(`
+            *,
+            users:user_id (
+              id,
+              full_name,
+              company_name
+            )
+          `)
+          .eq('team_id', teamId)
+          .order('created_at', { ascending: true })
+        
+        if (!membersError && membersData) {
+          setMembers(membersData as TeamMemberWithUser[])
+          // Re-evaluate canAddMember status
+          if (teamLimit) {
+            setCanAddMember({
+              allowed: membersData.length < teamLimit.maxUsers,
+              reason: membersData.length >= teamLimit.maxUsers ? `You have reached the limit of ${teamLimit.maxUsers} user${teamLimit.maxUsers === 1 ? '' : 's'} for your ${teamLimit.planName} plan. Upgrade to add more seats.` : undefined,
+              currentCount: membersData.length,
+              maxUsers: teamLimit.maxUsers
+            })
+          }
+        }
       } else {
         toast.error(result.message)
         setInviteError(result.message)
       }
-    } catch (error: any) {
-      console.error('Error inviting member:', error)
-      toast.error(error.message || 'Failed to invite member.')
-      setInviteError(error.message || 'Failed to invite member.')
-    } finally {
-      setInviting(false)
-    }
-
-      // If we had a way to check auth.users, the logic would be:
-      // if (userExists) {
-      //   const { error: addError } = await supabase
-      //     .from('team_members')
-      //     .insert({
-      //       team_id: teamId,
-      //       user_id: existingUser.id,
-      //       role: 'member'
-      //     })
-      //   if (addError) throw addError
-      //   toast.success('Member added to team!')
-      //   setInviteEmail('')
-      //   // Refresh members list
-      //   const membersData = await getTeamMembers(teamId)
-      //   setMembers(membersData as TeamMemberWithUser[])
-      // } else {
-      //   toast.error('User must sign up for a free account first.')
-      // }
-
     } catch (error: any) {
       console.error('Error inviting member:', error)
       toast.error(error.message || 'Failed to invite member.')
@@ -185,9 +249,23 @@ function TeamManagementContent() {
       
       if (result.success) {
         toast.success(result.message)
-        // Refresh members list
-        const membersData = await getTeamMembers(teamId)
-        setMembers(membersData as TeamMemberWithUser[])
+        // Refresh members list using browser client
+        const { data: membersData, error: membersError } = await supabase
+          .from('team_members')
+          .select(`
+            *,
+            users:user_id (
+              id,
+              full_name,
+              company_name
+            )
+          `)
+          .eq('team_id', teamId)
+          .order('created_at', { ascending: true })
+        
+        if (!membersError && membersData) {
+          setMembers(membersData as TeamMemberWithUser[])
+        }
       } else {
         toast.error(result.message)
       }
@@ -247,18 +325,30 @@ function TeamManagementContent() {
                   setInviteEmail(e.target.value)
                   if (inviteError) setInviteError(undefined)
                 }}
-                disabled={inviting}
+                disabled={inviting || (canAddMember !== null && !canAddMember.allowed)}
                 error={inviteError}
               />
-              <p className="mt-2 text-sm text-gray-500">
-                The user must already have a QuickQuotes account. Ask them to sign up first, then you can add them.
-              </p>
+              {canAddMember && !canAddMember.allowed && (
+                <p className="mt-2 text-sm text-red-600">
+                  {canAddMember.reason} <Link href="/pricing" className="underline">Upgrade your plan</Link> to add more users.
+                </p>
+              )}
+              {canAddMember?.allowed && (
+                <p className="mt-2 text-sm text-gray-500">
+                  You can add {canAddMember.maxUsers - canAddMember.currentCount} more user(s) on your {teamLimit?.planName} plan.
+                </p>
+              )}
+              {!canAddMember && (
+                <p className="mt-2 text-sm text-gray-500">
+                  The user must already have a Quotd account. Ask them to sign up first, then you can add them.
+                </p>
+              )}
             </div>
             <LoadingButton
               type="submit"
               loading={inviting}
               loadingText="Adding..."
-              disabled={!inviteEmail}
+              disabled={!inviteEmail || (canAddMember !== null && !canAddMember.allowed)}
             >
               <UserPlus className="mr-2 h-4 w-4" />
               Add Member
@@ -269,8 +359,8 @@ function TeamManagementContent() {
 
       {/* Team Members List */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Team Members ({members.length})
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Team Members ({members.length} {teamLimit && `of ${teamLimit.maxUsers}`})
         </h2>
         
         {members.length === 0 ? (
@@ -281,7 +371,7 @@ function TeamManagementContent() {
         ) : (
           <div className="space-y-3">
             {members.map((member) => {
-              const isCurrentUser = member.user_id === supabase.auth.getUser().then(u => u.data.user?.id)
+              const isCurrentUser = member.user_id === currentUserId
               const userName = member.users?.full_name || member.users?.company_name || 'Unknown User'
               const userEmail = member.users?.email || 'No email'
 
@@ -300,7 +390,7 @@ function TeamManagementContent() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900 truncate">{userName}</p>
+                        <p className="font-semibold text-gray-900 truncate">{userName} {isCurrentUser && '(You)'}</p>
                         {member.role === 'owner' && (
                           <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-semibold rounded-full">
                             Owner

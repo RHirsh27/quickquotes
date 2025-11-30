@@ -23,7 +23,10 @@ export default async function DashboardLayout({
         <div className="min-h-screen bg-gray-50">
           {/* Desktop Header (Hidden on mobile) */}
           <div className="hidden md:flex items-center justify-between px-8 py-4 bg-white border-b sticky top-0 z-10">
-            <h1 className="text-xl font-bold text-gray-800">QuickQuotes</h1>
+            <div>
+              <h1 className="text-xl font-extrabold text-gray-800" style={{ fontWeight: 800 }}>Quotd</h1>
+              <p className="text-xs text-gray-500 -mt-1">Instant Estimates</p>
+            </div>
             <Navbar />
           </div>
 

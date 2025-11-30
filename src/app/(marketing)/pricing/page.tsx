@@ -156,7 +156,10 @@ export default function PricingPage() {
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">QuickQuotes</h1>
+            <div>
+              <h1 className="text-2xl font-extrabold text-gray-900" style={{ fontWeight: 800 }}>Quotd</h1>
+              <p className="text-xs text-gray-500 -mt-1">Instant Estimates</p>
+            </div>
             {isAuthenticated ? (
               <Button variant="ghost" onClick={() => router.push('/dashboard')}>
                 Go to Dashboard
@@ -278,7 +281,7 @@ export default function PricingPage() {
             All plans include a 14-day free trial. Cancel anytime.
           </p>
           <p className="text-sm text-gray-500">
-            Questions? <a href="mailto:support@quickquotes.com" className="text-blue-600 hover:underline">Contact our team</a>
+            Questions? <a href="mailto:support@quotd.com" className="text-blue-600 hover:underline">Contact our team</a>
           </p>
         </div>
       </div>

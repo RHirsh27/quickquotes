@@ -207,10 +207,13 @@ function AuthPageContent() {
         <div className="mx-auto h-12 w-12 bg-blue-600 rounded-xl flex items-center justify-center">
           <Building2 className="h-8 w-8 text-white" />
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          QuickQuotes
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900" style={{ fontWeight: 800 }}>
+          Quotd
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+        <p className="mt-2 text-center text-sm text-gray-500 font-medium">
+          Instant Estimates
+        </p>
+        <p className="mt-1 text-center text-xs text-gray-500">
           {isSignUp ? 'Create your professional profile' : 'Sign in to your account'}
         </p>
       </div>

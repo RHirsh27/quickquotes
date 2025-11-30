@@ -22,8 +22,8 @@ export default function LandingPage() {
       <nav className="border-b bg-white sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="text-2xl font-bold text-gray-900">
-              QuickQuotes
+            <Link href="/" className="text-2xl font-extrabold text-gray-900" style={{ fontWeight: 800 }}>
+              Quotd
             </Link>
             <div className="flex items-center gap-3">
               <Link href="/login">
@@ -296,9 +296,9 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <h4 className="text-white font-bold text-lg mb-4">QuickQuotes</h4>
+              <h4 className="text-white font-extrabold text-lg mb-4" style={{ fontWeight: 800 }}>Quotd</h4>
               <p className="text-sm">
-                The fastest way to quote trade jobs. Built for tradespeople, by tradespeople.
+                Instant Estimates. Built for tradespeople, by tradespeople.
               </p>
             </div>
             <div>
@@ -326,7 +326,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 text-center text-sm">
-            <p>&copy; {new Date().getFullYear()} QuickQuotes. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} Quotd. All rights reserved.</p>
           </div>
         </div>
       </footer>

@@ -17,7 +17,10 @@ export default function Navbar() {
     <nav className="border-b bg-white">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">QuickQuotes</h2>
+          <div>
+            <h2 className="text-xl font-extrabold" style={{ fontWeight: 800 }}>Quotd</h2>
+            <p className="text-xs text-gray-500 -mt-1">Instant Estimates</p>
+          </div>
           <Button variant="outline" onClick={handleSignOut}>
             Log Out
           </Button>

@@ -1,12 +1,13 @@
 import { createClient } from './supabase/server'
 import type { Subscription } from './types'
+import { getSubscriptionLimits } from './subscriptions-client'
 
 /**
  * Get the active subscription for a user
  */
 export async function getUserSubscription(userId: string): Promise<Subscription | null> {
   const supabase = await createClient()
-  
+
   const { data, error } = await supabase
     .from('subscriptions')
     .select('*')
@@ -16,47 +17,19 @@ export async function getUserSubscription(userId: string): Promise<Subscription 
     .limit(1)
     .single()
 
-  if (error || !data) {
+  if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+    console.error('Error fetching user subscription:', error)
     return null
   }
 
-  return data as Subscription
+  return data as Subscription | null
 }
 
-/**
- * Get subscription limits based on plan ID
- */
-export function getSubscriptionLimits(planId: string | null): { maxUsers: number; planName: string } {
-  // Default to free tier if no plan
-  if (!planId) {
-    return { maxUsers: 1, planName: 'Free' }
-  }
-
-  // Map Stripe Price IDs to limits
-  // TODO: Replace these with your actual Stripe Price IDs
-  const planLimits: Record<string, { maxUsers: number; planName: string }> = {
-    // Solo Professional - 1 user (the owner)
-    [process.env.NEXT_PUBLIC_STRIPE_PRICE_SOLO || 'price_solo']: {
-      maxUsers: 1,
-      planName: 'Solo Professional',
-    },
-    // Small Team - 3 users total
-    [process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM || 'price_team']: {
-      maxUsers: 3,
-      planName: 'Small Team',
-    },
-    // Business - Unlimited (999 is effectively unlimited)
-    [process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS || 'price_business']: {
-      maxUsers: 999,
-      planName: 'Business',
-    },
-  }
-
-  return planLimits[planId] || { maxUsers: 1, planName: 'Free' }
-}
+// Re-export getSubscriptionLimits for server-side use
+export { getSubscriptionLimits }
 
 /**
- * Check if user can add more team members
+ * Check if user can add more team members (server-side)
  */
 export async function canAddTeamMember(
   userId: string,
@@ -102,3 +75,21 @@ export async function canAddTeamMember(
   }
 }
 
+/**
+ * Client-side helper to check if user can add more team members.
+ * This is a simplified version that doesn't do the actual check,
+ * but can be used for UI state management.
+ */
+export async function canAddTeamMemberClient(
+  userId: string,
+  teamId: string
+): Promise<{ allowed: boolean; reason?: string; currentCount: number; maxUsers: number }> {
+  // This would typically call an API route, but for simplicity,
+  // we'll just return a placeholder that the UI can use
+  // The actual check should be done server-side in the inviteTeamMember action
+  return {
+    allowed: true, // Will be validated server-side
+    currentCount: 0,
+    maxUsers: 999,
+  }
+}

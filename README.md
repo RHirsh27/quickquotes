@@ -1,4 +1,4 @@
-# Trade Job Quoter
+# Quotd
 
 A professional quoting tool for trade jobs built with Next.js 14, TypeScript, and Supabase.
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import { getStripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
@@ -26,14 +26,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user's email for Stripe customer
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
     // Check if user already has a Stripe customer ID
+    let customerId: string | null = null
     const { data: existingSubscription } = await supabase
       .from('subscriptions')
       .select('stripe_customer_id')
@@ -42,10 +36,11 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .single()
 
-    let customerId = existingSubscription?.stripe_customer_id
-
-    // Create Stripe customer if doesn't exist
-    if (!customerId) {
+    if (existingSubscription?.stripe_customer_id) {
+      customerId = existingSubscription.stripe_customer_id
+    } else {
+      // Create Stripe customer
+      const stripe = getStripe()
       const customer = await stripe.customers.create({
         email: user.email || undefined,
         metadata: {
@@ -54,38 +49,29 @@ export async function POST(request: NextRequest) {
       })
       customerId = customer.id
 
-      // Store customer ID in database (create or update subscription record)
-      // Check if subscription record exists
-      const { data: existingSub } = await supabase
+      // Store customer ID in database
+      const { error: upsertError } = await supabase
         .from('subscriptions')
-        .select('id')
-        .eq('user_id', user.id)
-        .single()
+        .upsert({
+          user_id: user.id,
+          stripe_customer_id: customerId,
+          status: 'incomplete',
+        }, {
+          onConflict: 'user_id', // Conflict on user_id to update existing row
+          ignoreDuplicates: false // Ensure update happens
+        })
 
-      if (existingSub) {
-        // Update existing record
-        await supabase
-          .from('subscriptions')
-          .update({
-            stripe_customer_id: customerId,
-          })
-          .eq('id', existingSub.id)
-      } else {
-        // Create new record
-        await supabase
-          .from('subscriptions')
-          .insert({
-            user_id: user.id,
-            stripe_customer_id: customerId,
-            status: 'incomplete',
-          })
+      if (upsertError) {
+        console.error('Error upserting subscription with customer ID:', upsertError)
+        throw new Error('Failed to save Stripe customer ID.')
       }
     }
 
     // Create checkout session
+    const stripe = getStripe()
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
+      customer: customerId || undefined,
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [
@@ -115,4 +101,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
