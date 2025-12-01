@@ -1,41 +1,74 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { type EmailOtpType } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
-  const error = requestUrl.searchParams.get('error')
-  const errorDescription = requestUrl.searchParams.get('error_description')
+  const { searchParams } = new URL(request.url)
+  const token_hash = searchParams.get('token_hash')
+  const type = searchParams.get('type') as EmailOtpType | null
+  const next = searchParams.get('next') ?? '/dashboard'
+  const code = searchParams.get('code') // Sometimes sent as 'code' instead of hash
 
-  // If there's an error from Supabase, redirect to error page
-  if (error) {
-    const errorUrl = new URL('/auth-code-error', requestUrl.origin)
-    errorUrl.searchParams.set('error', error)
-    if (errorDescription) {
-      errorUrl.searchParams.set('error_description', errorDescription)
+  if (token_hash && type) {
+    const cookieStore = cookies()
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            cookieStore.set(name, value, options)
+          },
+          remove(name: string, options: CookieOptions) {
+            cookieStore.set(name, '', { ...options, maxAge: -1 })
+          },
+        },
+      }
+    )
+
+    const { error } = await supabase.auth.verifyOtp({
+      type,
+      token_hash,
+    })
+
+    if (!error) {
+      return NextResponse.redirect(new URL(next, request.url))
     }
-    return NextResponse.redirect(errorUrl.toString())
+  } 
+  // Handle PKCE 'code' flow (Standard for new Supabase setups)
+  else if (code) {
+    const cookieStore = cookies()
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            cookieStore.set(name, value, options)
+          },
+          remove(name: string, options: CookieOptions) {
+            cookieStore.set(name, '', { ...options, maxAge: -1 })
+          },
+        },
+      }
+    )
+    
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    
+    if (!error) {
+      return NextResponse.redirect(new URL(next, request.url))
+    }
   }
 
-  // If there's a code, exchange it for a session
-  if (code) {
-    const supabase = await createClient()
-    
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-    
-    if (exchangeError) {
-      console.error('Error exchanging code for session:', exchangeError)
-      // Redirect to login with error parameter
-      const loginUrl = new URL('/login', requestUrl.origin)
-      loginUrl.searchParams.set('error', 'auth_code_error')
-      return NextResponse.redirect(loginUrl.toString())
-    }
-
-    // Success! Redirect to dashboard
-    return NextResponse.redirect(new URL('/dashboard', requestUrl.origin).toString())
-  }
-
-  // No code and no error - redirect to login
-  return NextResponse.redirect(new URL('/login', requestUrl.origin).toString())
+  // If error, redirect to error page
+  return NextResponse.redirect(new URL('/auth-code-error', request.url))
 }
-

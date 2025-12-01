@@ -9,6 +9,7 @@ export interface User {
   city: string | null
   state: string | null
   postal_code: string | null
+  stripe_connect_id: string | null // Stripe Connect Account ID for payouts
   created_at: string
 }
 
@@ -84,4 +85,19 @@ export interface Subscription {
   current_period_end: string | null // timestamp
   created_at: string
   updated_at: string
+}
+
+export interface Invoice {
+  id: string // uuid, PK
+  user_id: string // uuid, FK -> users.id
+  stripe_invoice_id: string // Stripe Invoice ID (unique)
+  status: 'pending' | 'paid' | 'failed' | 'void' | 'uncollectible'
+  amount: number | null // Amount in cents
+  currency: string | null // Currency code (e.g., 'usd')
+  description: string | null
+  customer_email: string | null
+  customer_name: string | null
+  created_at: string
+  updated_at: string
+  paid_at: string | null // When the invoice was marked as paid
 }

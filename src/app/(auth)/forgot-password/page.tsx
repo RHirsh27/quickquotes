@@ -22,6 +22,7 @@ export default function ForgotPasswordPage() {
   const handleResetThrottled = createThrottledSubmit(
     async (email: string) => {
       setLoading(true)
+      setEmailError(undefined)
 
       try {
         const sanitizedEmail = sanitizeEmail(email)
@@ -32,16 +33,45 @@ export default function ForgotPasswordPage() {
           return
         }
 
-        const { error } = await supabase.auth.resetPasswordForEmail(sanitizedEmail, {
-          redirectTo: `${window.location.origin}/reset-password`,
+        // Get the base URL for redirect
+        const baseUrl = window.location.origin
+        const redirectTo = `${baseUrl}/reset-password`
+
+        console.log('[Forgot Password] Sending reset email to:', sanitizedEmail)
+        console.log('[Forgot Password] Redirect URL:', redirectTo)
+
+        const { data, error } = await supabase.auth.resetPasswordForEmail(sanitizedEmail, {
+          redirectTo: redirectTo,
         })
 
-        if (error) throw error
+        if (error) {
+          console.error('[Forgot Password] Error sending reset email:', error)
+          console.error('[Forgot Password] Error details:', {
+            message: error.message,
+            status: error.status,
+          })
+          
+          // Provide more specific error messages
+          if (error.message.includes('rate limit') || error.message.includes('too many')) {
+            toast.error('Too many requests. Please wait a few minutes and try again.')
+          } else if (error.message.includes('email')) {
+            toast.error('Invalid email address. Please check and try again.')
+          } else {
+            toast.error(error.message || 'Failed to send reset email. Please try again.')
+          }
+          return
+        }
 
+        console.log('[Forgot Password] Reset email sent successfully')
         setSent(true)
-        toast.success('Password reset email sent! Check your inbox.')
+        toast.success('Password reset email sent! Check your inbox (and spam folder).')
       } catch (error: any) {
-        toast.error(error.message || 'Failed to send reset email')
+        console.error('[Forgot Password] Unexpected error:', error)
+        console.error('[Forgot Password] Error details:', {
+          message: error?.message || 'Unknown error',
+          stack: error?.stack,
+        })
+        toast.error(error?.message || 'An unexpected error occurred. Please try again.')
       } finally {
         setLoading(false)
       }

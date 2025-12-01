@@ -1,4 +1,4 @@
-cd trade-job-quoter-- Trade Job Quoter - Database Setup Script
+-- Trade Job Quoter - Database Setup Script
 -- Run this in your Supabase SQL Editor
 
 -- 1. Create users table (extends auth.users)
@@ -7,6 +7,10 @@ CREATE TABLE IF NOT EXISTS public.users (
   full_name TEXT,
   company_name TEXT,
   phone TEXT,
+  address_line_1 TEXT,
+  city TEXT,
+  state TEXT,
+  postal_code TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -70,14 +74,17 @@ ALTER TABLE public.quotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quote_line_items ENABLE ROW LEVEL SECURITY;
 
 -- 7. Create RLS Policies for users table
+DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
 CREATE POLICY "Users can view own profile"
   ON public.users FOR SELECT
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
 CREATE POLICY "Users can update own profile"
   ON public.users FOR UPDATE
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.users;
 CREATE POLICY "Users can insert own profile"
   ON public.users FOR INSERT
   WITH CHECK (auth.uid() = id);
@@ -104,18 +111,22 @@ CREATE POLICY "Users can delete own customers"
   USING (auth.uid() = user_id);
 
 -- 9. Create RLS Policies for service_presets table
+DROP POLICY IF EXISTS "Users can view own presets" ON public.service_presets;
 CREATE POLICY "Users can view own presets"
   ON public.service_presets FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own presets" ON public.service_presets;
 CREATE POLICY "Users can insert own presets"
   ON public.service_presets FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own presets" ON public.service_presets;
 CREATE POLICY "Users can update own presets"
   ON public.service_presets FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own presets" ON public.service_presets;
 CREATE POLICY "Users can delete own presets"
   ON public.service_presets FOR DELETE
   USING (auth.uid() = user_id);
@@ -142,6 +153,7 @@ CREATE POLICY "Users can delete own quotes"
   USING (auth.uid() = user_id);
 
 -- 11. Create RLS Policies for quote_line_items table
+DROP POLICY IF EXISTS "Users can view own line items" ON public.quote_line_items;
 CREATE POLICY "Users can view own line items"
   ON public.quote_line_items FOR SELECT
   USING (
@@ -152,6 +164,7 @@ CREATE POLICY "Users can view own line items"
     )
   );
 
+DROP POLICY IF EXISTS "Users can insert own line items" ON public.quote_line_items;
 CREATE POLICY "Users can insert own line items"
   ON public.quote_line_items FOR INSERT
   WITH CHECK (
@@ -162,6 +175,7 @@ CREATE POLICY "Users can insert own line items"
     )
   );
 
+DROP POLICY IF EXISTS "Users can update own line items" ON public.quote_line_items;
 CREATE POLICY "Users can update own line items"
   ON public.quote_line_items FOR UPDATE
   USING (
@@ -172,6 +186,7 @@ CREATE POLICY "Users can update own line items"
     )
   );
 
+DROP POLICY IF EXISTS "Users can delete own line items" ON public.quote_line_items;
 CREATE POLICY "Users can delete own line items"
   ON public.quote_line_items FOR DELETE
   USING (
@@ -186,11 +201,16 @@ CREATE POLICY "Users can delete own line items"
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, full_name, company_name)
+  INSERT INTO public.users (id, full_name, company_name, phone, address_line_1, city, state, postal_code)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-    COALESCE(NEW.raw_user_meta_data->>'company_name', '')
+    COALESCE(NEW.raw_user_meta_data->>'company_name', ''),
+    COALESCE(NEW.raw_user_meta_data->>'phone', ''),
+    COALESCE(NEW.raw_user_meta_data->>'address_line_1', ''),
+    COALESCE(NEW.raw_user_meta_data->>'city', ''),
+    COALESCE(NEW.raw_user_meta_data->>'state', ''),
+    COALESCE(NEW.raw_user_meta_data->>'postal_code', '')
   );
   RETURN NEW;
 END;
