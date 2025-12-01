@@ -70,5 +70,5 @@ export async function GET(request: Request) {
   }
 
   // If error, redirect to error page
-  return NextResponse.redirect(new URL('/auth-code-error', request.url))
+  return NextResponse.redirect(new URL('/auth/auth-code-error', request.url))
 }
