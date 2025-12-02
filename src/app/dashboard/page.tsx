@@ -56,8 +56,8 @@ export default async function Dashboard() {
     redirect('/login')
   }
 
-  // Fetch user profile from users table (handle errors gracefully)
-  let companyName = 'User'
+  // Initialize defaults - all values start at safe defaults
+  let companyName = 'My Company'
   let userRole: 'owner' | 'member' | null = null
   let totalQuotes = 0
   let activeQuotes = 0
@@ -67,68 +67,66 @@ export default async function Dashboard() {
   let recentQuotes: any[] = []
 
   try {
-    // Fetch user profile
+    // Fetch user profile - handle null gracefully
+    let profile: any = null
     try {
-      const { data: profile, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('users')
         .select('*')
         .eq('id', user.id)
         .single()
       
       if (profileError) {
-        console.error('[Dashboard] Error fetching user profile:', profileError)
-        console.error('[Dashboard] Profile error details:', {
-          message: profileError.message,
-          code: profileError.code,
-          details: profileError.details,
-          hint: profileError.hint,
-        })
-      } else if (profile) {
-        companyName = profile.company_name || profile.full_name || 'User'
+        // PGRST116 means no rows found - this is okay, we'll use defaults
+        if (profileError.code !== 'PGRST116') {
+          console.error('[Dashboard] Error fetching user profile:', profileError)
+          console.error('[Dashboard] Profile error details:', {
+            message: profileError.message,
+            code: profileError.code,
+            details: profileError.details,
+            hint: profileError.hint,
+          })
+        }
       } else {
-        console.warn('[Dashboard] No profile found for user:', user.id)
+        profile = profileData
       }
     } catch (error) {
       console.error('[Dashboard] Exception fetching profile:', error)
-      console.error('[Dashboard] Profile exception details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-      })
+      // Continue with defaults
     }
 
-    // Get user's primary team and role
+    // Set company name with safe defaults
+    if (profile) {
+      companyName = profile.company_name || profile.full_name || 'My Company'
+    } else {
+      // No profile found - use default
+      companyName = 'My Company'
+    }
+
+    // Get user's primary team and role - handle missing team gracefully
     let teamId: string | null = null
     try {
-      // Call the RPC function to get primary team
+      // Try RPC function first
       const { data: primaryTeamId, error: teamError } = await supabase.rpc('get_user_primary_team')
       
       if (teamError) {
-        console.error('[Dashboard] Error fetching primary team via RPC:', teamError)
-        console.error('[Dashboard] Team RPC error details:', {
-          message: teamError.message,
-          code: teamError.code,
-          details: teamError.details,
-          hint: teamError.hint,
-        })
+        // RPC failed - try direct query fallback
+        console.warn('[Dashboard] RPC failed, trying direct query:', teamError.message)
         
-        // Fallback: try to get team from team_members
-        try {
-          const { data: teamMemberData, error: teamMemberError } = await supabase
-            .from('team_members')
-            .select('team_id, role')
-            .eq('user_id', user.id)
-            .limit(1)
-            .single()
-          
-          if (teamMemberError) {
-            console.error('[Dashboard] Error fetching team member (fallback):', teamMemberError)
-          } else if (teamMemberData) {
-            teamId = teamMemberData.team_id
-            userRole = teamMemberData.role as 'owner' | 'member'
-            console.log('[Dashboard] Found team via fallback method:', teamId, 'Role:', userRole)
-          }
-        } catch (fallbackError) {
-          console.error('[Dashboard] Exception in team member fallback:', fallbackError)
+        const { data: teamMemberData, error: teamMemberError } = await supabase
+          .from('team_members')
+          .select('team_id, role')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle() // Use maybeSingle() instead of single() to handle no rows gracefully
+        
+        if (!teamMemberError && teamMemberData) {
+          teamId = teamMemberData.team_id
+          userRole = teamMemberData.role as 'owner' | 'member'
+          console.log('[Dashboard] Found team via direct query:', teamId, 'Role:', userRole)
+        } else if (teamMemberError && teamMemberError.code !== 'PGRST116') {
+          // PGRST116 means no rows found - this is okay for new users
+          console.warn('[Dashboard] No team found for user (this is okay for new users):', teamMemberError.message)
         }
       } else if (primaryTeamId) {
         teamId = primaryTeamId
@@ -140,24 +138,23 @@ export default async function Dashboard() {
           .select('role')
           .eq('team_id', primaryTeamId)
           .eq('user_id', user.id)
-          .single()
+          .maybeSingle() // Use maybeSingle() for graceful handling
         
         if (!roleError && teamMember) {
           userRole = teamMember.role as 'owner' | 'member'
           console.log('[Dashboard] User role:', userRole)
         }
       } else {
-        console.warn('[Dashboard] No primary team found for user:', user.id)
+        // No team found - this is okay, user might be new
+        console.log('[Dashboard] No primary team found for user (will show empty stats):', user.id)
       }
     } catch (error) {
       console.error('[Dashboard] Exception getting team ID:', error)
-      console.error('[Dashboard] Team ID exception details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-      })
+      // Continue without team - will show empty stats
     }
 
     // Fetch stats - different logic for owners vs members
+    // Handle missing team gracefully - show empty stats instead of crashing
     try {
       if (userRole === 'member') {
         // Members: Only show their own quotes
@@ -169,26 +166,32 @@ export default async function Dashboard() {
 
         if (quotesError) {
           console.error('[Dashboard] Error fetching member quotes:', quotesError)
-        } else if (quotesData) {
-          myQuotes = quotesData.length
-          myActiveQuotes = quotesData.filter(q => q.status === 'sent' || q.status === 'draft').length
-          recentQuotes = quotesData.slice(0, 5).map(q => ({
-            ...q,
-            total: Number(q.total) || 0,
+          // Stats remain at 0 (default)
+        } else if (quotesData && Array.isArray(quotesData)) {
+          myQuotes = quotesData.length || 0
+          myActiveQuotes = quotesData.filter(q => q && (q.status === 'sent' || q.status === 'draft')).length || 0
+          recentQuotes = (quotesData.slice(0, 5) || []).map(q => ({
+            id: q?.id || '',
+            quote_number: q?.quote_number || '',
+            status: q?.status || 'draft',
+            total: Number(q?.total) || 0,
+            created_at: q?.created_at || new Date().toISOString(),
+            customers: q?.customers || null,
           }))
         }
       } else {
-        // Owners: Show team-wide stats
-        const quotesQuery = supabase
+        // Owners: Show team-wide stats (or user-only if no team)
+        let quotesQuery = supabase
           .from('quotes')
           .select('id, status, total, created_at, quote_number, customers(name)')
           .order('created_at', { ascending: false })
         
         if (teamId) {
-          quotesQuery.eq('team_id', teamId)
+          // Use team_id if available
+          quotesQuery = quotesQuery.eq('team_id', teamId)
         } else {
-          // Fallback to user_id if no team found
-          quotesQuery.eq('user_id', user.id)
+          // Fallback to user_id if no team found (edge case)
+          quotesQuery = quotesQuery.eq('user_id', user.id)
         }
         
         const { data: quotesData, error: quotesError } = await quotesQuery
@@ -201,15 +204,23 @@ export default async function Dashboard() {
             details: quotesError.details,
             hint: quotesError.hint,
           })
-        } else if (quotesData) {
-          totalQuotes = quotesData.length
-          activeQuotes = quotesData.filter(q => q.status === 'sent' || q.status === 'draft').length
+          // Stats remain at 0 (default)
+        } else if (quotesData && Array.isArray(quotesData)) {
+          totalQuotes = quotesData.length || 0
+          activeQuotes = quotesData.filter(q => q && (q.status === 'sent' || q.status === 'draft')).length || 0
           totalRevenue = quotesData
-            .filter(q => q.status === 'accepted')
-            .reduce((sum, q) => sum + (Number(q.total) || 0), 0)
-          recentQuotes = quotesData.slice(0, 5).map(q => ({
-            ...q,
-            total: Number(q.total) || 0,
+            .filter(q => q && q.status === 'accepted')
+            .reduce((sum, q) => {
+              const total = Number(q?.total) || 0
+              return sum + total
+            }, 0)
+          recentQuotes = (quotesData.slice(0, 5) || []).map(q => ({
+            id: q?.id || '',
+            quote_number: q?.quote_number || '',
+            status: q?.status || 'draft',
+            total: Number(q?.total) || 0,
+            created_at: q?.created_at || new Date().toISOString(),
+            customers: q?.customers || null,
           }))
           console.log('[Dashboard] Successfully fetched quotes:', {
             total: totalQuotes,
@@ -218,7 +229,8 @@ export default async function Dashboard() {
             recent: recentQuotes.length,
           })
         } else {
-          console.warn('[Dashboard] No quotes data returned (null or undefined)')
+          // No quotes data - this is okay, show empty state
+          console.log('[Dashboard] No quotes found (user may be new)')
         }
       }
     } catch (error) {
@@ -227,6 +239,7 @@ export default async function Dashboard() {
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
       })
+      // Stats remain at 0 (default) - page will render with empty state
     }
 
   } catch (error) {
@@ -245,7 +258,7 @@ export default async function Dashboard() {
       {/* Welcome Message */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">
-          Welcome back, {companyName}
+          Welcome back, {companyName || 'My Company'}
         </h1>
       </div>
 
@@ -297,17 +310,24 @@ export default async function Dashboard() {
           <p className="text-gray-500">No recent quotes. Create one to get started!</p>
         ) : (
           <ul className="space-y-3">
-            {recentQuotes.map((quote) => (
-              <li key={quote.id}>
-                <Link href={`/quotes/${quote.id}`} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                  <div>
-                    <p className="font-medium text-gray-900">#{quote.quote_number} - {quote.customers?.name || 'Unknown Customer'}</p>
-                    <p className="text-sm text-gray-500">{new Date(quote.created_at).toLocaleDateString()}</p>
-                  </div>
-                  <p className="font-bold text-gray-900">${quote.total.toFixed(2)}</p>
-                </Link>
-              </li>
-            ))}
+            {recentQuotes.map((quote) => {
+              if (!quote || !quote.id) return null
+              return (
+                <li key={quote.id}>
+                  <Link href={`/quotes/${quote.id}`} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        #{quote.quote_number || 'N/A'} - {quote.customers?.name || 'Unknown Customer'}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {quote.created_at ? new Date(quote.created_at).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                    <p className="font-bold text-gray-900">${(quote.total || 0).toFixed(2)}</p>
+                  </Link>
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>
