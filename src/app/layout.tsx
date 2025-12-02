@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { ToastProvider } from '@/components/providers/ToastProvider'
@@ -14,15 +14,20 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Quotd',
+    title: 'QUOTD',
+  },
+  themeColor: '#2563eb',
+  other: {
+    'apple-mobile-web-app-title': 'QUOTD',
   },
 }
 
-export const viewport = {
+export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: '#2563eb',
 }
 
 export default function RootLayout({
@@ -32,14 +37,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Quotd" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="theme-color" content="#2563eb" />
-        <link rel="manifest" href="/manifest.json" />
-      </head>
       <body className={inter.className}>
         <ToastProvider />
         {children}
