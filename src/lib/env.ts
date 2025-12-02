@@ -12,17 +12,22 @@
 import { z } from "zod";
 
 const envSchema = z.object({
+  // Core Supabase variables - always required
   NEXT_PUBLIC_SUPABASE_URL: z.string().url("NEXT_PUBLIC_SUPABASE_URL must be a valid URL"),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, "NEXT_PUBLIC_SUPABASE_ANON_KEY is required"),
-  STRIPE_SECRET_KEY: z.string().min(1, "STRIPE_SECRET_KEY is required"),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().min(1, "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is required"),
-  NEXT_PUBLIC_STRIPE_PRICE_SOLO: z.string().min(1, "NEXT_PUBLIC_STRIPE_PRICE_SOLO is required"),
-  NEXT_PUBLIC_STRIPE_PRICE_CREW: z.string().min(1, "NEXT_PUBLIC_STRIPE_PRICE_CREW is required"),
-  NEXT_PUBLIC_STRIPE_PRICE_SQUAD: z.string().min(1, "NEXT_PUBLIC_STRIPE_PRICE_SQUAD is required"),
-  NEXT_PUBLIC_STRIPE_PRICE_FLEET: z.string().min(1, "NEXT_PUBLIC_STRIPE_PRICE_FLEET is required"),
-  NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE: z.string().min(1, "NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE is required"),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1, "STRIPE_WEBHOOK_SECRET is required"),
-  NEXT_PUBLIC_APP_URL: z.string().url("NEXT_PUBLIC_APP_URL must be a valid URL"),
+  
+  // Stripe variables - optional (only required when using Stripe features)
+  STRIPE_SECRET_KEY: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PRICE_SOLO: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PRICE_CREW: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PRICE_SQUAD: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PRICE_FLEET: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  
+  // App URL - optional (defaults to localhost in development)
+  NEXT_PUBLIC_APP_URL: z.union([z.string().url("NEXT_PUBLIC_APP_URL must be a valid URL"), z.literal("")]).optional(),
 });
 
 /**
@@ -31,8 +36,8 @@ const envSchema = z.object({
  * This will throw a ZodError with clear messages if any required
  * environment variables are missing or invalid.
  * 
- * Only validates at runtime (not during build) to allow builds
- * without all env vars set.
+ * Core Supabase variables are always required.
+ * Stripe variables are optional and only validated when accessed.
  */
 function validateEnv() {
   // Skip validation during build phase
@@ -41,19 +46,19 @@ function validateEnv() {
     return {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
-      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
-      NEXT_PUBLIC_STRIPE_PRICE_SOLO: process.env.NEXT_PUBLIC_STRIPE_PRICE_SOLO || '',
-      NEXT_PUBLIC_STRIPE_PRICE_CREW: process.env.NEXT_PUBLIC_STRIPE_PRICE_CREW || '',
-      NEXT_PUBLIC_STRIPE_PRICE_SQUAD: process.env.NEXT_PUBLIC_STRIPE_PRICE_SQUAD || '',
-      NEXT_PUBLIC_STRIPE_PRICE_FLEET: process.env.NEXT_PUBLIC_STRIPE_PRICE_FLEET || '',
-      NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE || '',
-      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || '',
-      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || undefined,
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || undefined,
+      NEXT_PUBLIC_STRIPE_PRICE_SOLO: process.env.NEXT_PUBLIC_STRIPE_PRICE_SOLO || undefined,
+      NEXT_PUBLIC_STRIPE_PRICE_CREW: process.env.NEXT_PUBLIC_STRIPE_PRICE_CREW || undefined,
+      NEXT_PUBLIC_STRIPE_PRICE_SQUAD: process.env.NEXT_PUBLIC_STRIPE_PRICE_SQUAD || undefined,
+      NEXT_PUBLIC_STRIPE_PRICE_FLEET: process.env.NEXT_PUBLIC_STRIPE_PRICE_FLEET || undefined,
+      NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE || undefined,
+      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || undefined,
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || undefined,
     } as z.infer<typeof envSchema>;
   }
 
-  // Validate at runtime
+  // Validate at runtime - Stripe vars are optional
   return envSchema.parse({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
