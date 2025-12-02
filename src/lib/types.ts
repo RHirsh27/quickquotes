@@ -61,6 +61,7 @@ export interface Quote {
   tax_amount: number // numeric
   tax_rate: number // numeric - Percentage
   total: number // numeric
+  job_summary: string | null // Scope of work / job summary
   notes: string | null // Terms/Notes for the PDF footer
   created_at: string
 }
@@ -95,6 +96,7 @@ export interface Invoice {
   amount: number | null // Amount in cents
   currency: string | null // Currency code (e.g., 'usd')
   description: string | null
+  job_summary: string | null // Scope of work / job summary
   customer_email: string | null
   customer_name: string | null
   created_at: string

@@ -8,7 +8,7 @@ import '@/lib/env'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Quotd - Quick Quotes',
+  title: 'Quotd | Instant Estimates for Trades',
   description: 'Professional quoting tool for trade jobs',
 }
 

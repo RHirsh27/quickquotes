@@ -48,6 +48,7 @@ export default function NewQuotePage() {
   
   const [items, setItems] = useState<LineItemState[]>([])
   const [taxRate, setTaxRate] = useState(0) // Tax rate percentage
+  const [jobSummary, setJobSummary] = useState('') // Job summary / scope of work
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -268,6 +269,7 @@ export default function NewQuotePage() {
         tax_amount: Number(taxAmount) || 0,
         tax_rate: Number(taxRate) || 0,
         total: Number(total) || 0,
+        job_summary: jobSummary.trim() || null,
         notes: null
       }
       
@@ -414,7 +416,19 @@ export default function NewQuotePage() {
           )}
         </div>
 
-        {/* 2. LINE ITEMS SECTION */}
+        {/* 2. JOB SUMMARY SECTION */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+          <h2 className="font-semibold text-gray-800 mb-3">Job Summary / Scope of Work</h2>
+          <textarea
+            value={jobSummary}
+            onChange={(e) => setJobSummary(e.target.value)}
+            placeholder="Describe the work to be performed, scope of the project, or any relevant details..."
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y text-sm"
+          />
+        </div>
+
+        {/* 3. LINE ITEMS SECTION */}
         <div className="space-y-3">
           <h2 className="font-semibold text-gray-800 px-1">Line Items</h2>
           

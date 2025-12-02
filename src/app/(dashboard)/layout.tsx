@@ -37,6 +37,27 @@ export default async function DashboardLayout({
       // Continue without role - will default to showing all items
     }
 
+    // Check subscription status for owners (payment required)
+    if (userRole === 'owner') {
+      try {
+        const { data: subscription, error: subError } = await supabase
+          .from('subscriptions')
+          .select('status')
+          .eq('user_id', user.id)
+          .in('status', ['active', 'trialing'])
+          .limit(1)
+          .maybeSingle()
+
+        // If no active subscription found, redirect to finish-setup
+        if (!subError && !subscription) {
+          redirect('/finish-setup')
+        }
+      } catch (error) {
+        console.error('[Dashboard Layout] Error checking subscription:', error)
+        // On error, allow access (fail open) - but log it
+      }
+    }
+
     return (
       <DashboardWrapper>
         <div className="min-h-screen bg-gray-50">

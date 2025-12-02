@@ -30,7 +30,7 @@ export default function LandingPage() {
               <Link href="/login">
                 <Button variant="ghost">Log In</Button>
               </Link>
-              <Link href="/login">
+              <Link href="/signup?plan=CREW">
                 <Button>Get Started</Button>
               </Link>
             </div>
@@ -48,7 +48,7 @@ export default function LandingPage() {
             <p className="text-xl text-gray-600 mb-8 leading-relaxed">
               Stop wrestling with paperwork. Send professional PDF estimates from your phone before you even leave the driveway.
             </p>
-            <Link href="/login">
+            <Link href="/signup?plan=CREW">
               <Button className="text-lg px-8 py-6 h-auto">
                 Start Quoting for Free
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -271,7 +271,7 @@ export default function LandingPage() {
                   )}
 
                   {/* CTA Button */}
-                  <Link href="/login" className="block">
+                  <Link href={`/signup?plan=${plan.id}`} className="block">
                     <Button
                       className={`w-full ${
                         isHighlighted

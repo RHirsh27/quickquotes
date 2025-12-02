@@ -248,6 +248,14 @@ export default function QuoteDetailsPage() {
             <p className="text-gray-600">{customer.phone}</p>
           </div>
 
+          {/* Job Summary */}
+          {quote.job_summary && (
+            <div className="mb-8 bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Scope of Work</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{quote.job_summary}</p>
+            </div>
+          )}
+
           {/* Items Table */}
           <table className="w-full mb-8">
             <thead>

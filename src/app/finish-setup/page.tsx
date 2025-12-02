@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui'
-import { Check, Zap, Users, Building2, ArrowRight } from 'lucide-react'
+import { Check, Zap, Users, Building2, ArrowRight, CreditCard } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { getAllPlans, type PricingPlan as ConfigPricingPlan } from '@/config/pricing'
+import Link from 'next/link'
 
 // Map plan IDs to icons
 const planIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -15,65 +16,50 @@ const planIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   TEAM: Building2,
 }
 
-// Map plan IDs to CTA text
-const planCTAs: Record<string, string> = {
-  SOLO: 'Start Solo',
-  CREW: 'Get Started',
-  TEAM: 'Get Started',
-}
-
 // Convert config plans to UI format
 function getPlansForUI(): Array<ConfigPricingPlan & {
   icon: React.ComponentType<{ className?: string }>
-  cta: string
   highlight?: boolean
 }> {
   return getAllPlans().map((plan) => ({
     ...plan,
     icon: planIcons[plan.id] || Zap,
-    cta: planCTAs[plan.id] || 'Get Started',
     highlight: plan.label === 'Best Value', // Highlight CREW as "Best Value"
   }))
 }
 
-export default function PricingPage() {
+export default function FinishSetupPage() {
   const router = useRouter()
   const supabase = createClient()
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 
   useEffect(() => {
     async function checkAuth() {
       const { data: { user } } = await supabase.auth.getUser()
       setIsAuthenticated(!!user)
+      
+      if (!user) {
+        router.push('/login')
+      }
     }
     checkAuth()
-  }, [supabase])
+  }, [supabase, router])
 
   const handleSubscribe = async (plan: ConfigPricingPlan & {
     icon: React.ComponentType<{ className?: string }>
-    description: string
-    cta: string
     highlight?: boolean
   }) => {
-    if (isAuthenticated === null) {
-      // Still checking auth status
-      return
-    }
-
     if (!isAuthenticated) {
-      // Redirect to signup with plan parameter
       router.push(`/signup?plan=${plan.id}`)
       return
     }
 
-    // Validate that Stripe Price ID is set
     if (!plan.stripePriceId) {
       toast.error('This plan is not yet available. Please contact support.')
       return
     }
 
-    // User is authenticated - create checkout session
     setLoading(plan.id)
     try {
       const response = await fetch('/api/stripe/checkout', {
@@ -106,7 +92,6 @@ export default function PricingPage() {
   }
 
   if (isAuthenticated === null) {
-    // Show loading state while checking auth
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -123,36 +108,35 @@ export default function PricingPage() {
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
+            <Link href="/">
               <h1 className="text-2xl font-extrabold text-gray-900" style={{ fontWeight: 800 }}>Quotd</h1>
-              <p className="text-xs text-gray-500 -mt-1">Instant Estimates</p>
-            </div>
-            {isAuthenticated ? (
-              <Button variant="ghost" onClick={() => router.push('/dashboard')}>
-                Go to Dashboard
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={() => router.push('/login')}>
-                Sign In
-              </Button>
-            )}
+            </Link>
+            <Link href="/login">
+              <Button variant="ghost">Log In</Button>
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Hero Section */}
+      {/* Main Content */}
       <div className="container mx-auto px-4 py-16 md:py-24">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            Invest in Your Business Efficiency
+        <div className="max-w-4xl mx-auto text-center mb-12">
+          <div className="mx-auto h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+            <CreditCard className="h-8 w-8 text-blue-600" />
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            Complete Your Setup
           </h1>
-          <p className="text-xl text-gray-600 leading-relaxed">
-            Simple, powerful tools for tradespeople who value their time.
+          <p className="text-xl text-gray-600 mb-2">
+            Please complete your payment to access your dashboard.
+          </p>
+          <p className="text-sm text-gray-500">
+            Choose a plan below to get started with Quotd.
           </p>
         </div>
 
-        {/* Pricing Cards - Clean 3 Card Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        {/* Pricing Cards */}
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {getPlansForUI().map((plan) => {
             const Icon = plan.icon
             const isLoading = loading === plan.id
@@ -160,7 +144,7 @@ export default function PricingPage() {
             return (
               <div
                 key={plan.id}
-                className={`relative bg-white rounded-2xl shadow-lg border-2 transition-all hover:shadow-xl ${
+                className={`relative bg-white rounded-xl shadow-lg border-2 transition-all hover:shadow-xl ${
                   plan.highlight
                     ? 'border-blue-600 scale-105'
                     : 'border-gray-200'
@@ -242,7 +226,7 @@ export default function PricingPage() {
                       </>
                     ) : (
                       <>
-                        {plan.cta}
+                        Get Started
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </>
                     )}
@@ -253,7 +237,7 @@ export default function PricingPage() {
           })}
         </div>
 
-        {/* FAQ or Additional Info */}
+        {/* Additional Info */}
         <div className="mt-16 text-center max-w-2xl mx-auto">
           <p className="text-gray-600 mb-4">
             All plans include a 14-day free trial. Cancel anytime.

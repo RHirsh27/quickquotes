@@ -11,6 +11,7 @@ import { sanitizeString, sanitizeEmail, sanitizePhone } from '@/lib/utils/saniti
 import { isValidEmail, isValidPhone, isRequired } from '@/lib/utils/validation'
 import { createThrottledSubmit } from '@/lib/utils/rateLimit'
 import { PasswordStrength } from '@/components/ui/PasswordStrength'
+import { getPlanById, type PlanId } from '@/config/pricing'
 
 interface FormErrors {
   email?: string
@@ -31,8 +32,13 @@ function AuthPageContent() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
-  // Check for auth errors from callback
+  // Check for plan parameter and set signup mode if present
   useEffect(() => {
+    const planParam = searchParams.get('plan')
+    if (planParam && ['SOLO', 'CREW', 'TEAM'].includes(planParam)) {
+      setIsSignUp(true)
+    }
+    
     const error = searchParams.get('error')
     if (error === 'auth_code_error') {
       toast.error('Authentication failed. Please try again or request a new confirmation email.')
@@ -145,7 +151,13 @@ function AuthPageContent() {
           const baseUrl = window.location.origin
           const redirectTo = `${baseUrl}/auth/callback`
           
-          const { error } = await supabase.auth.signUp({ 
+          // Get plan from query params
+          const planParam = searchParams.get('plan') as PlanId | null
+          const selectedPlan = planParam && ['SOLO', 'CREW', 'TEAM'].includes(planParam) 
+            ? getPlanById(planParam)
+            : null
+
+          const { data: signUpData, error } = await supabase.auth.signUp({ 
             email: sanitizedEmail, 
             password: sanitizedPassword,
             options: { 
@@ -162,7 +174,47 @@ function AuthPageContent() {
             }
           })
           if (error) throw error
-          // Redirect to verify email page instead of showing toast
+
+          // If plan is selected and user is created, trigger Stripe checkout
+          if (selectedPlan && selectedPlan.stripePriceId && signUpData?.user) {
+            try {
+              // Wait a moment for the user session to be established
+              await new Promise(resolve => setTimeout(resolve, 500))
+              
+              // Create Stripe checkout session
+              const response = await fetch('/api/stripe/checkout', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  priceId: selectedPlan.stripePriceId,
+                }),
+              })
+
+              const checkoutData = await response.json()
+
+              if (!response.ok) {
+                throw new Error(checkoutData.error || 'Failed to create checkout session')
+              }
+
+              if (checkoutData.url) {
+                // Redirect to Stripe Checkout
+                window.location.href = checkoutData.url
+                return
+              } else {
+                throw new Error('No checkout URL returned')
+              }
+            } catch (checkoutError: any) {
+              console.error('Error creating checkout session:', checkoutError)
+              // If checkout fails, still redirect to verify email
+              toast.error('Account created but payment setup failed. Please complete payment later.')
+              router.push('/verify-email')
+              return
+            }
+          }
+
+          // No plan selected or Stripe Price ID not configured - redirect to verify email
           router.push('/verify-email')
           return
         } else {

@@ -20,6 +20,11 @@ const styles = StyleSheet.create({
   infoSection: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
   infoCol: { width: '45%' },
   
+  // Job Summary
+  jobSummarySection: { marginBottom: 20, padding: 10, backgroundColor: '#f3f4f6', borderRadius: 4 },
+  jobSummaryLabel: { fontSize: 9, fontWeight: 'bold', color: '#666', marginBottom: 4, textTransform: 'uppercase' },
+  jobSummaryText: { fontSize: 10, color: '#333', lineHeight: 1.5 },
+  
   // Table
   table: { width: '100%', marginBottom: 20 },
   tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#000', paddingBottom: 6, marginBottom: 8 },
@@ -85,6 +90,14 @@ export const QuotePDF = ({ quote, items, customer, userProfile }: QuotePDFProps)
           {customer.email && <Text>{customer.email}</Text>}
         </View>
       </View>
+
+      {/* Job Summary */}
+      {quote.job_summary && (
+        <View style={styles.jobSummarySection}>
+          <Text style={styles.jobSummaryLabel}>SCOPE OF WORK:</Text>
+          <Text style={styles.jobSummaryText}>{quote.job_summary}</Text>
+        </View>
+      )}
 
       {/* Body: Line Items Table */}
       <View style={styles.table}>
