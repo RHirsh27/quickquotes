@@ -200,16 +200,20 @@ export default async function Dashboard() {
             const total = Number(q?.total) || 0
             return sum + total
           }, 0)
-          recentQuotes = (quotesData.slice(0, 10) || []).map(q => ({
-            id: q?.id || '',
-            quote_number: q?.quote_number || '',
-            status: q?.status || 'draft',
-            total: Number(q?.total) || 0,
-            created_at: q?.created_at || new Date().toISOString(),
-            customers: q?.customers || null,
-            user_id: q?.user_id || user.id,
-            creator_name: q?.users?.full_name || q?.users?.company_name || 'You',
-          }))
+          recentQuotes = (quotesData.slice(0, 10) || []).map(q => {
+            // Handle users as either array or single object
+            const userData = Array.isArray(q?.users) ? q?.users[0] : q?.users
+            return {
+              id: q?.id || '',
+              quote_number: q?.quote_number || '',
+              status: q?.status || 'draft',
+              total: Number(q?.total) || 0,
+              created_at: q?.created_at || new Date().toISOString(),
+              customers: q?.customers || null,
+              user_id: q?.user_id || user.id,
+              creator_name: userData?.full_name || userData?.company_name || 'You',
+            }
+          })
         }
       } else {
         // Owners: Show team-wide stats (or user-only if no team)
@@ -251,16 +255,20 @@ export default async function Dashboard() {
           avgQuoteValue = quoteTotals.length > 0 
             ? quoteTotals.reduce((sum, total) => sum + total, 0) / quoteTotals.length 
             : 0
-          recentQuotes = (quotesData.slice(0, 10) || []).map(q => ({
-            id: q?.id || '',
-            quote_number: q?.quote_number || '',
-            status: q?.status || 'draft',
-            total: Number(q?.total) || 0,
-            created_at: q?.created_at || new Date().toISOString(),
-            customers: q?.customers || null,
-            user_id: q?.user_id || user.id,
-            creator_name: q?.users?.full_name || q?.users?.company_name || 'Team Member',
-          }))
+          recentQuotes = (quotesData.slice(0, 10) || []).map(q => {
+            // Handle users as either array or single object
+            const userData = Array.isArray(q?.users) ? q?.users[0] : q?.users
+            return {
+              id: q?.id || '',
+              quote_number: q?.quote_number || '',
+              status: q?.status || 'draft',
+              total: Number(q?.total) || 0,
+              created_at: q?.created_at || new Date().toISOString(),
+              customers: q?.customers || null,
+              user_id: q?.user_id || user.id,
+              creator_name: userData?.full_name || userData?.company_name || 'Team Member',
+            }
+          })
           console.log('[Dashboard] Successfully fetched quotes:', {
             total: totalQuotes,
             active: activeQuotes,
