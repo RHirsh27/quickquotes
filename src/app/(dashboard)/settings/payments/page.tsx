@@ -253,7 +253,6 @@ function PaymentsSettingsContent() {
             <li>Manage your account settings anytime</li>
           </ul>
         </div>
-      </div>
     </div>
   )
 }
