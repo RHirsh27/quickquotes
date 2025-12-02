@@ -20,6 +20,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { priceId } = body
 
+    // Log checkout start
+    console.log('Starting checkout for price:', priceId)
+
     if (!priceId || typeof priceId !== 'string') {
       return NextResponse.json(
         { error: 'priceId is required' },
@@ -86,28 +89,39 @@ export async function POST(request: NextRequest) {
 
     // Create checkout session
     const stripe = getStripe()
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId || undefined,
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      success_url: `${baseUrl}/dashboard?payment=success`,
-      cancel_url: `${baseUrl}/pricing`,
-      metadata: {
-        userId: user.id,
-      },
-      subscription_data: {
+    // Use NEXT_PUBLIC_SITE_URL for Vercel, fallback to request origin for localhost
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin
+    
+    let session
+    try {
+      session = await stripe.checkout.sessions.create({
+        customer: customerId || undefined,
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        success_url: `${baseUrl}/dashboard?payment=success`,
+        cancel_url: `${baseUrl}/pricing`,
         metadata: {
           userId: user.id,
         },
-      },
-    })
+        subscription_data: {
+          metadata: {
+            userId: user.id,
+          },
+        },
+      })
+    } catch (stripeError: any) {
+      console.error('Stripe Error:', stripeError)
+      return NextResponse.json(
+        { error: stripeError.message || 'Failed to create checkout session' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({ sessionId: session.id, url: session.url })
   } catch (error: any) {

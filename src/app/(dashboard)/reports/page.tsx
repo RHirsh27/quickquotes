@@ -28,9 +28,9 @@ export default async function ReportsPage() {
   const subscription = await getUserSubscription(user.id)
   const planId = subscription?.plan_id || null
   
-  // Check if user has FLEET or ENTERPRISE plan
+  // Check if user has TEAM plan
   const plan = planId ? getPlanByStripePriceId(planId) : null
-  const hasAccess = plan && (plan.id === 'FLEET' || plan.id === 'ENTERPRISE')
+  const hasAccess = plan && plan.id === 'TEAM'
 
   // If no access, show locked state
   if (!hasAccess) {
@@ -69,7 +69,7 @@ export default async function ReportsPage() {
             <div className="p-8 text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Advanced Reporting</h2>
               <p className="text-gray-600 mb-6">
-                Advanced Reporting is available on the Fleet Plan and above.
+                Advanced Reporting is available on the Team Plan.
               </p>
               <Link href="/pricing">
                 <Button className="inline-flex items-center gap-2">

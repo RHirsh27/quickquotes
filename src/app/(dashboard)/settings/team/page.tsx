@@ -10,7 +10,7 @@ import toast from 'react-hot-toast'
 import { sanitizeEmail } from '@/lib/utils/sanitize'
 import { isValidEmail, isRequired } from '@/lib/utils/validation'
 // Removed server-side imports - using browser client directly
-import { inviteTeamMember, removeTeamMember } from '@/app/actions/team'
+import { inviteTeamMember, removeTeamMember, addSeatAndInvite } from '@/app/actions/team'
 import { getSubscriptionLimits } from '@/lib/subscriptions-client'
 import { PRICING_PLANS, getPlanByStripePriceId, getNextPlan, type PlanId } from '@/config/pricing'
 import type { Subscription } from '@/lib/types'
@@ -44,6 +44,9 @@ function TeamManagementContent() {
   const [teamLimit, setTeamLimit] = useState<{ maxUsers: number; planName: string } | null>(null)
   const [canAddMember, setCanAddMember] = useState<{ allowed: boolean; reason?: string; currentCount: number; maxUsers: number } | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [showAddSeatModal, setShowAddSeatModal] = useState(false)
+  const [currentPlan, setCurrentPlan] = useState<PlanId | null>(null)
 
   // Redirect members to profile
   useEffect(() => {
@@ -154,15 +157,27 @@ function TeamManagementContent() {
           const currentPlan = getPlanByStripePriceId(subscriptionData.plan_id)
           
           if (currentPlan) {
+            setCurrentPlan(currentPlan.id)
+            
+            const memberCount = (membersData || []).length
+            
+            // For TEAM plan, maxUsers is dynamic (10 base + extra seats)
+            // We'll show it as "10+" and allow adding seats when at base limit
+            let maxUsers = currentPlan.userLimit
+            let canAdd = memberCount < currentPlan.userLimit
+            
+            if (currentPlan.id === 'TEAM') {
+              // TEAM plan: Soft limit of 10 users
+              // After 10 users, they can add seats for $25/mo each
+              maxUsers = 10 // Base limit
+              canAdd = true // Always allow for TEAM (they can add seats via modal)
+            }
+            
             const limits = {
-              maxUsers: currentPlan.userLimit,
+              maxUsers: maxUsers,
               planName: currentPlan.name
             }
             setTeamLimit(limits)
-
-            // Check if user can add more members
-            const memberCount = (membersData || []).length
-            const canAdd = memberCount < currentPlan.userLimit
             
             // Get next plan for upgrade suggestion
             const nextPlan = getNextPlan(currentPlan.id)
@@ -172,9 +187,9 @@ function TeamManagementContent() {
             
             const addMemberCheck = {
               allowed: canAdd,
-              reason: !canAdd ? `You have reached the limit of ${currentPlan.userLimit} user${currentPlan.userLimit === 1 ? '' : 's'} for your ${currentPlan.name} plan. ${upgradeMessage}` : undefined,
+              reason: !canAdd && currentPlan.id !== 'TEAM' ? `You have reached the limit of ${currentPlan.userLimit} user${currentPlan.userLimit === 1 ? '' : 's'} for your ${currentPlan.name} plan. ${upgradeMessage}` : undefined,
               currentCount: memberCount,
-              maxUsers: currentPlan.userLimit
+              maxUsers: maxUsers
             }
             setCanAddMember(addMemberCheck)
           } else {
@@ -227,14 +242,7 @@ function TeamManagementContent() {
       return
     }
 
-    // Check subscription limits client-side
-    if (canAddMember && !canAddMember.allowed) {
-      toast.error(canAddMember.reason || 'Cannot add more members due to plan limits.')
-      setInviting(false)
-      return
-    }
-
-    // Sanitize and validate email
+    // Sanitize and validate email first
     const sanitizedEmail = sanitizeEmail(inviteEmail)
     if (!isRequired(sanitizedEmail)) {
       setInviteError('Email is required')
@@ -243,6 +251,33 @@ function TeamManagementContent() {
     }
     if (!isValidEmail(sanitizedEmail)) {
       setInviteError('Please enter a valid email address')
+      setInviting(false)
+      return
+    }
+
+    // Check if at plan limit and show appropriate modal
+    const memberCount = members.length
+    const baseLimit = currentPlan && PRICING_PLANS[currentPlan] ? PRICING_PLANS[currentPlan].userLimit : 1
+    
+    // For TEAM plan: If they have 10 members and are trying to add the 11th, show add seat modal
+    if (currentPlan === 'TEAM' && memberCount >= 10) {
+      // Show "Add Seat" modal for TEAM plan (11th member and beyond)
+      setShowAddSeatModal(true)
+      setInviting(false)
+      return
+    }
+    
+    // For SOLO/CREW: If at limit, show upgrade modal
+    if ((currentPlan === 'SOLO' || currentPlan === 'CREW') && memberCount >= baseLimit) {
+      // Show "Upgrade" modal for SOLO/CREW
+      setShowUpgradeModal(true)
+      setInviting(false)
+      return
+    }
+
+    // If within limits, proceed with normal invite
+    if (canAddMember && !canAddMember.allowed) {
+      toast.error(canAddMember.reason || 'Cannot add more members due to plan limits.')
       setInviting(false)
       return
     }
@@ -287,6 +322,63 @@ function TeamManagementContent() {
       console.error('Error inviting member:', error)
       toast.error(error.message || 'Failed to invite member.')
       setInviteError(error.message || 'Failed to invite member.')
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  // Handle add seat and invite (for TEAM plan)
+  const handleAddSeatAndInvite = async () => {
+    setInviting(true)
+    setShowAddSeatModal(false)
+
+    const sanitizedEmail = sanitizeEmail(inviteEmail)
+    if (!sanitizedEmail || !isValidEmail(sanitizedEmail)) {
+      toast.error('Please enter a valid email address')
+      setInviting(false)
+      return
+    }
+
+    try {
+      const result = await addSeatAndInvite(sanitizedEmail)
+      
+      if (result.success) {
+        toast.success(result.message)
+        setInviteEmail('')
+        // Refresh members list
+        const { data: membersData, error: membersError } = await supabase
+          .from('team_members')
+          .select(`
+            *,
+            users:user_id (
+              id,
+              full_name,
+              company_name
+            )
+          `)
+          .eq('team_id', teamId)
+          .order('created_at', { ascending: true })
+        
+        if (!membersError && membersData) {
+          setMembers(membersData as TeamMemberWithUser[])
+          // Update canAddMember status
+          const memberCount = membersData.length
+          if (teamLimit) {
+            setCanAddMember({
+              allowed: true, // TEAM can always add more
+              currentCount: memberCount,
+              maxUsers: teamLimit.maxUsers
+            })
+          }
+        }
+      } else {
+        toast.error(result.message)
+        setInviteError(result.message)
+      }
+    } catch (error: any) {
+      console.error('Error adding seat and inviting:', error)
+      toast.error(error.message || 'Failed to add seat and invite member.')
+      setInviteError(error.message || 'Failed to add seat and invite member.')
     } finally {
       setInviting(false)
     }
@@ -380,7 +472,7 @@ function TeamManagementContent() {
                   setInviteEmail(e.target.value)
                   if (inviteError) setInviteError(undefined)
                 }}
-                disabled={inviting || (canAddMember !== null && !canAddMember.allowed)}
+                disabled={inviting || (canAddMember !== null && !canAddMember.allowed && currentPlan !== 'TEAM')}
                 error={inviteError}
               />
               {canAddMember && !canAddMember.allowed && (
@@ -390,7 +482,11 @@ function TeamManagementContent() {
               )}
               {canAddMember?.allowed && (
                 <p className="mt-2 text-sm text-gray-500">
-                  You can add {canAddMember.maxUsers - canAddMember.currentCount} more user(s) on your {teamLimit?.planName} plan.
+                  {currentPlan === 'TEAM' && members.length >= 10
+                    ? `You have ${members.length} users. Add additional seats for $25/mo each.`
+                    : currentPlan === 'TEAM' && members.length < 10
+                    ? `You can add ${10 - members.length} more user(s) before needing to add seats.`
+                    : `You can add ${canAddMember.maxUsers - canAddMember.currentCount} more user(s) on your ${teamLimit?.planName} plan.`}
                 </p>
               )}
               {!canAddMember && (
@@ -415,7 +511,7 @@ function TeamManagementContent() {
       {/* Team Members List */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Team Members ({members.length} {teamLimit && `of ${teamLimit.maxUsers}`})
+          Team Members ({members.length} {teamLimit && currentPlan === 'TEAM' && members.length >= 10 ? '+' : `of ${teamLimit.maxUsers}`})
         </h2>
         
         {members.length === 0 ? (
@@ -478,6 +574,79 @@ function TeamManagementContent() {
           </div>
         )}
       </div>
+
+      {/* Upgrade Modal (for SOLO/CREW) */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Upgrade Required</h3>
+            <p className="text-gray-600 mb-6">
+              You have reached the limit of {teamLimit?.maxUsers} user{teamLimit?.maxUsers === 1 ? '' : 's'} for your {teamLimit?.planName} plan.
+            </p>
+            <p className="text-gray-600 mb-6">
+              {currentPlan && getNextPlan(currentPlan) 
+                ? `Upgrade to ${getNextPlan(currentPlan)?.name} to add more team members.`
+                : 'You have reached the maximum plan limit.'}
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowUpgradeModal(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Link href="/pricing" className="flex-1">
+                <Button className="w-full">
+                  View Plans
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Seat Modal (for TEAM plan) */}
+      {showAddSeatModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Add Additional Seat</h3>
+            <p className="text-gray-600 mb-6">
+              You have reached the 10 user limit. Add an additional seat for $25/mo?
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              This will add the seat to your subscription and invite <strong>{inviteEmail}</strong> to your team.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddSeatModal(false)
+                  setInviting(false)
+                }}
+                className="flex-1"
+                disabled={inviting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddSeatAndInvite}
+                className="flex-1"
+                disabled={inviting}
+              >
+                {inviting ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  'Add Seat & Invite'
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

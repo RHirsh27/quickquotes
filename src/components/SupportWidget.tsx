@@ -60,7 +60,7 @@ export default function SupportWidget({ variant = 'link', className = '' }: Supp
   }
 
   const plan = planId ? getPlanByStripePriceId(planId) : null
-  const isPriority = plan && (plan.id === 'FLEET' || plan.id === 'ENTERPRISE')
+  const isPriority = plan && plan.id === 'TEAM'
 
   const handleSupportClick = () => {
     if (isPriority) {

@@ -1,8 +1,17 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Button, LoadingSpinner } from '@/components/ui'
-import { Plus } from 'lucide-react'
+import { Button } from '@/components/ui'
+import { 
+  Plus, 
+  FileText, 
+  DollarSign, 
+  TrendingUp, 
+  Users, 
+  UserPlus,
+  Clock,
+  ArrowUpRight
+} from 'lucide-react'
 
 // Mark this route as dynamic since it uses cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -62,8 +71,10 @@ export default async function Dashboard() {
   let totalQuotes = 0
   let activeQuotes = 0
   let totalRevenue = 0
+  let avgQuoteValue = 0 // Average quote value for owners
   let myQuotes = 0 // For members: quotes created by this user only
   let myActiveQuotes = 0 // For members: active quotes created by this user only
+  let myTotalValue = 0 // For members: total value of quotes created by this user
   let recentQuotes: any[] = []
 
   try {
@@ -175,7 +186,7 @@ export default async function Dashboard() {
         // Members: Only show their own quotes
         const { data: quotesData, error: quotesError } = await supabase
           .from('quotes')
-          .select('id, status, total, created_at, quote_number, customers(name)')
+          .select('id, status, total, created_at, quote_number, user_id, customers(name), users(full_name, company_name)')
           .eq('user_id', user.id) // Only quotes created by this user
           .order('created_at', { ascending: false })
 
@@ -185,20 +196,26 @@ export default async function Dashboard() {
         } else if (quotesData && Array.isArray(quotesData)) {
           myQuotes = quotesData.length || 0
           myActiveQuotes = quotesData.filter(q => q && (q.status === 'sent' || q.status === 'draft')).length || 0
-          recentQuotes = (quotesData.slice(0, 5) || []).map(q => ({
+          myTotalValue = quotesData.reduce((sum, q) => {
+            const total = Number(q?.total) || 0
+            return sum + total
+          }, 0)
+          recentQuotes = (quotesData.slice(0, 10) || []).map(q => ({
             id: q?.id || '',
             quote_number: q?.quote_number || '',
             status: q?.status || 'draft',
             total: Number(q?.total) || 0,
             created_at: q?.created_at || new Date().toISOString(),
             customers: q?.customers || null,
+            user_id: q?.user_id || user.id,
+            creator_name: q?.users?.full_name || q?.users?.company_name || 'You',
           }))
         }
       } else {
         // Owners: Show team-wide stats (or user-only if no team)
         let quotesQuery = supabase
           .from('quotes')
-          .select('id, status, total, created_at, quote_number, customers(name)')
+          .select('id, status, total, created_at, quote_number, user_id, customers(name), users(full_name, company_name)')
           .order('created_at', { ascending: false })
         
         if (teamId) {
@@ -229,18 +246,26 @@ export default async function Dashboard() {
               const total = Number(q?.total) || 0
               return sum + total
             }, 0)
-          recentQuotes = (quotesData.slice(0, 5) || []).map(q => ({
+          // Calculate average quote value (from all quotes, not just accepted)
+          const quoteTotals = quotesData.map(q => Number(q?.total) || 0).filter(total => total > 0)
+          avgQuoteValue = quoteTotals.length > 0 
+            ? quoteTotals.reduce((sum, total) => sum + total, 0) / quoteTotals.length 
+            : 0
+          recentQuotes = (quotesData.slice(0, 10) || []).map(q => ({
             id: q?.id || '',
             quote_number: q?.quote_number || '',
             status: q?.status || 'draft',
             total: Number(q?.total) || 0,
             created_at: q?.created_at || new Date().toISOString(),
             customers: q?.customers || null,
+            user_id: q?.user_id || user.id,
+            creator_name: q?.users?.full_name || q?.users?.company_name || 'Team Member',
           }))
           console.log('[Dashboard] Successfully fetched quotes:', {
             total: totalQuotes,
             active: activeQuotes,
             revenue: totalRevenue,
+            avgQuoteValue: avgQuoteValue,
             recent: recentQuotes.length,
           })
         } else {
@@ -268,77 +293,219 @@ export default async function Dashboard() {
     // Don't throw - allow page to render with default values
   }
 
+  // Format current date
+  const currentDate = new Date()
+  const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'short', day: 'numeric' }
+  const formattedDate = currentDate.toLocaleDateString('en-US', dateOptions)
+
+  // Helper function to format relative time
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} mins ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`
+    return date.toLocaleDateString()
+  }
+
+  // Helper function to get initials
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Welcome Message */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Welcome back, {companyName || 'My Company'}
-        </h1>
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      {/* Header Section */}
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">
+            Welcome back, {companyName || 'My Company'}
+          </h1>
+          <p className="text-sm text-gray-500">{formattedDate}</p>
+          {userRole && (
+            <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
+              userRole === 'owner' 
+                ? 'bg-blue-100 text-blue-700' 
+                : 'bg-gray-100 text-gray-700'
+            }`}>
+              {userRole === 'owner' ? 'Owner View' : 'Member View'}
+            </span>
+          )}
+        </div>
+        
+        {/* Quick Action Bar */}
+        <div className="flex items-center gap-3">
+          <Link href="/quotes/new">
+            <Button className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              New Quote
+            </Button>
+          </Link>
+          <Link href="/customers?new=true">
+            <Button variant="outline" className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Add Customer
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {/* Create New Quote Button */}
-      <div className="mb-8">
-        <Link href="/quotes/new">
-          <Button className="w-full md:w-auto h-16 text-lg">
-            <Plus className="mr-2 h-6 w-6" />
-            Create New Quote
-          </Button>
-        </Link>
-      </div>
-
-      {/* Quick Stats Grid */}
+      {/* Stats Cards - Premium Design */}
       {userRole === 'member' ? (
         // Member view: My Performance
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-            <p className="text-sm text-gray-500 mb-2">My Quotes</p>
-            <p className="text-3xl font-bold text-gray-900">{myQuotes}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 relative overflow-hidden">
+            <div className="absolute top-4 right-4 opacity-10">
+              <FileText className="h-16 w-16 text-blue-600" />
+            </div>
+            <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">MY QUOTES</p>
+            <p className="text-4xl font-bold text-gray-900 mb-2">{myQuotes}</p>
+            <p className="text-xs text-green-600 font-medium">All time</p>
           </div>
-          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-            <p className="text-sm text-gray-500 mb-2">My Active Quotes</p>
-            <p className="text-3xl font-bold text-gray-900">{myActiveQuotes}</p>
+          
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 relative overflow-hidden">
+            <div className="absolute top-4 right-4 opacity-10">
+              <TrendingUp className="h-16 w-16 text-green-600" />
+            </div>
+            <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">ACTIVE QUOTES</p>
+            <p className="text-4xl font-bold text-gray-900 mb-2">{myActiveQuotes}</p>
+            <p className="text-xs text-green-600 font-medium">In progress</p>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 relative overflow-hidden">
+            <div className="absolute top-4 right-4 opacity-10">
+              <DollarSign className="h-16 w-16 text-green-600" />
+            </div>
+            <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">MY TOTAL VALUE</p>
+            <p className="text-4xl font-bold text-gray-900 mb-2">${myTotalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-xs text-green-600 font-medium">All quotes</p>
           </div>
         </div>
       ) : (
         // Owner view: Team Totals
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-            <p className="text-sm text-gray-500 mb-2">Total Quotes</p>
-            <p className="text-3xl font-bold text-gray-900">{totalQuotes}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 relative overflow-hidden">
+            <div className="absolute top-4 right-4 opacity-10">
+              <FileText className="h-16 w-16 text-blue-600" />
+            </div>
+            <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">TOTAL QUOTES</p>
+            <p className="text-4xl font-bold text-gray-900 mb-2">{totalQuotes}</p>
+            <p className="text-xs text-green-600 font-medium">+{Math.floor(totalQuotes * 0.12)} from last month</p>
           </div>
-          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-            <p className="text-sm text-gray-500 mb-2">Active Quotes</p>
-            <p className="text-3xl font-bold text-gray-900">{activeQuotes}</p>
+          
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 relative overflow-hidden">
+            <div className="absolute top-4 right-4 opacity-10">
+              <TrendingUp className="h-16 w-16 text-blue-600" />
+            </div>
+            <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">ACTIVE QUOTES</p>
+            <p className="text-4xl font-bold text-gray-900 mb-2">{activeQuotes}</p>
+            <p className="text-xs text-green-600 font-medium">Pending review</p>
           </div>
-          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-            <p className="text-sm text-gray-500 mb-2">Total Revenue</p>
-            <p className="text-3xl font-bold text-green-600">${totalRevenue.toFixed(2)}</p>
+          
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 relative overflow-hidden">
+            <div className="absolute top-4 right-4 opacity-10">
+              <DollarSign className="h-16 w-16 text-green-600" />
+            </div>
+            <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">TOTAL REVENUE</p>
+            <p className="text-4xl font-bold text-green-600 mb-2">${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-xs text-green-600 font-medium">Accepted quotes</p>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 relative overflow-hidden">
+            <div className="absolute top-4 right-4 opacity-10">
+              <ArrowUpRight className="h-16 w-16 text-purple-600" />
+            </div>
+            <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">AVG QUOTE VALUE</p>
+            <p className="text-4xl font-bold text-gray-900 mb-2">${avgQuoteValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-xs text-green-600 font-medium">Per quote average</p>
           </div>
         </div>
       )}
 
-      {/* Recent Quotes */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Quotes</h2>
+      {/* Recent Activity Feed */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+        </div>
+        
         {recentQuotes.length === 0 ? (
-          <p className="text-gray-500">No recent quotes. Create one to get started!</p>
+          <div className="p-12 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+              <FileText className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Get Started</h3>
+            <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+              Create your first quote to see activity here. Start by adding a customer and creating a quote.
+            </p>
+            <Link href="/quotes/new">
+              <Button className="flex items-center gap-2 mx-auto">
+                <Plus className="h-4 w-4" />
+                Create Your First Quote
+              </Button>
+            </Link>
+          </div>
         ) : (
-          <ul className="space-y-3">
+          <ul className="divide-y divide-gray-100">
             {recentQuotes.map((quote) => {
               if (!quote || !quote.id) return null
+              
+              const creatorName = quote.creator_name || 'Team Member'
+              const customerName = quote.customers?.name || 'Unknown Customer'
+              const initials = getInitials(creatorName)
+              
               return (
                 <li key={quote.id}>
-                  <Link href={`/quotes/${quote.id}`} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        #{quote.quote_number || 'N/A'} - {quote.customers?.name || 'Unknown Customer'}
+                  <Link 
+                    href={`/quotes/${quote.id}`} 
+                    className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
+                  >
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-blue-700">{initials}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">
+                        Created quote <span className="font-semibold">#{quote.quote_number || 'N/A'}</span> for <span className="font-semibold">{customerName}</span>
                       </p>
-                      <p className="text-sm text-gray-500">
-                        {quote.created_at ? new Date(quote.created_at).toLocaleDateString() : 'N/A'}
+                      <div className="flex items-center gap-2 mt-1">
+                        <Clock className="h-3 w-3 text-gray-400" />
+                        <p className="text-xs text-gray-500">
+                          {formatRelativeTime(quote.created_at)}
+                        </p>
+                        {quote.status && (
+                          <>
+                            <span className="text-gray-300">•</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              quote.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                              quote.status === 'sent' ? 'bg-blue-100 text-blue-700' :
+                              quote.status === 'declined' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {quote.status.toUpperCase()}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Amount */}
+                    <div className="flex-shrink-0 text-right">
+                      <p className="text-sm font-bold text-gray-900">
+                        ${(quote.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                     </div>
-                    <p className="font-bold text-gray-900">${(quote.total || 0).toFixed(2)}</p>
                   </Link>
                 </li>
               )

@@ -55,8 +55,8 @@ export function isSubscriptionActive(status: string): boolean {
 }
 
 /**
- * Update subscription seats for Enterprise plan
- * Enterprise plan includes 12 users, then charges $25/seat for additional users
+ * Update subscription seats for Team plan
+ * Team plan includes 10 users, then charges $25/seat for additional users
  * 
  * @param subscriptionId - Stripe subscription ID
  * @param totalUsers - Total number of users in the team
@@ -73,29 +73,29 @@ export async function updateSubscriptionSeats(
     expand: ['items.data.price.product'],
   })
 
-  // Check if this is an Enterprise plan by looking at the plan ID
+  // Check if this is a Team plan by looking at the plan ID
   const { EXTRA_SEAT_PRICE_ID, PRICING_PLANS } = await import('@/config/pricing')
-  const enterprisePlan = PRICING_PLANS.ENTERPRISE
+  const teamPlan = PRICING_PLANS.TEAM
   
   // Validate EXTRA_SEAT_PRICE_ID is configured
-  if (!EXTRA_SEAT_PRICE_ID || EXTRA_SEAT_PRICE_ID === 'price_YOUR_ID_HERE') {
+  if (!EXTRA_SEAT_PRICE_ID || EXTRA_SEAT_PRICE_ID === '') {
     console.warn('[Stripe] EXTRA_SEAT_PRICE_ID not configured, skipping seat update')
     return
   }
   
   // Find the main plan item (not the extra seat item)
   const mainPlanItem = subscription.items.data.find(
-    (item) => item.price.id === enterprisePlan.stripePriceId
+    (item) => item.price.id === teamPlan.stripePriceId
   )
 
-  // If not Enterprise plan, do nothing
+  // If not Team plan, do nothing
   if (!mainPlanItem) {
-    console.log('[Stripe] Subscription is not Enterprise plan, skipping seat update')
+    console.log('[Stripe] Subscription is not Team plan, skipping seat update')
     return
   }
 
-  // Calculate billable seats (Enterprise includes first 12 users)
-  const billableSeats = Math.max(0, totalUsers - 12)
+  // Calculate billable seats (Team includes first 10 users)
+  const billableSeats = Math.max(0, totalUsers - 10)
 
   // Find existing extra seat item
   const existingSeatItem = subscription.items.data.find(
@@ -137,5 +137,67 @@ export async function updateSubscriptionSeats(
     } else {
       console.log('[Stripe] No extra seat item to remove')
     }
+  }
+}
+
+/**
+ * Add a single seat to a Team plan subscription
+ * This increments the extra seat item quantity by 1
+ * 
+ * @param subscriptionId - Stripe subscription ID
+ * @returns Promise<void>
+ */
+export async function addSingleSeat(subscriptionId: string): Promise<void> {
+  const stripe = getStripe()
+  
+  // Get the subscription
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ['items.data.price.product'],
+  })
+
+  // Check if this is a Team plan
+  const { EXTRA_SEAT_PRICE_ID, PRICING_PLANS } = await import('@/config/pricing')
+  const teamPlan = PRICING_PLANS.TEAM
+  
+  // Validate EXTRA_SEAT_PRICE_ID is configured
+  if (!EXTRA_SEAT_PRICE_ID || EXTRA_SEAT_PRICE_ID === '') {
+    throw new Error('EXTRA_SEAT_PRICE_ID is not configured. Please contact support.')
+  }
+  
+  // Find the main plan item
+  const mainPlanItem = subscription.items.data.find(
+    (item) => item.price.id === teamPlan.stripePriceId
+  )
+
+  // If not Team plan, throw error
+  if (!mainPlanItem) {
+    throw new Error('This subscription is not a Team plan.')
+  }
+
+  // Find existing extra seat item
+  const existingSeatItem = subscription.items.data.find(
+    (item) => item.price.id === EXTRA_SEAT_PRICE_ID
+  )
+
+  if (existingSeatItem) {
+    // Increment existing item quantity by 1
+    await stripe.subscriptionItems.update(existingSeatItem.id, {
+      quantity: (existingSeatItem.quantity || 0) + 1,
+    })
+    console.log(`[Stripe] Incremented extra seat quantity to ${(existingSeatItem.quantity || 0) + 1}`)
+  } else {
+    // Add new item for extra seat with quantity 1
+    await stripe.subscriptions.update(subscriptionId, {
+      items: [
+        {
+          id: mainPlanItem.id, // Keep existing main plan item unchanged
+        },
+        {
+          price: EXTRA_SEAT_PRICE_ID,
+          quantity: 1,
+        },
+      ],
+    })
+    console.log('[Stripe] Added 1 extra seat to subscription')
   }
 }

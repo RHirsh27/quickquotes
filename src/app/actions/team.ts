@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { canAddTeamMember, getUserSubscription } from '@/lib/subscriptions'
-import { updateSubscriptionSeats } from '@/lib/stripe'
+import { updateSubscriptionSeats, addSingleSeat } from '@/lib/stripe'
 import { getPlanByStripePriceId } from '@/config/pricing'
 
 export interface InviteMemberResult {
@@ -117,12 +117,12 @@ export async function inviteTeamMember(email: string): Promise<InviteMemberResul
       }
     }
 
-    // Update Stripe subscription seats if Enterprise plan
+    // Update Stripe subscription seats if Team plan
     try {
       const subscription = await getUserSubscription(user.id)
       if (subscription?.stripe_subscription_id) {
         const plan = getPlanByStripePriceId(subscription.plan_id || '')
-        if (plan?.id === 'ENTERPRISE') {
+        if (plan?.id === 'TEAM') {
           // Count total team members
           const { count: memberCount } = await supabase
             .from('team_members')
@@ -250,12 +250,12 @@ export async function removeTeamMember(memberId: string, memberUserId: string): 
       }
     }
 
-    // Update Stripe subscription seats if Enterprise plan
+    // Update Stripe subscription seats if Team plan
     try {
       const subscription = await getUserSubscription(user.id)
       if (subscription?.stripe_subscription_id) {
         const plan = getPlanByStripePriceId(subscription.plan_id || '')
-        if (plan?.id === 'ENTERPRISE') {
+        if (plan?.id === 'TEAM') {
           // Count total team members after removal
           const { count: memberCount } = await supabase
             .from('team_members')
@@ -279,6 +279,149 @@ export async function removeTeamMember(memberId: string, memberUserId: string): 
     }
   } catch (error: any) {
     console.error('Error removing team member:', error)
+    return {
+      success: false,
+      message: error.message || 'An unexpected error occurred.'
+    }
+  }
+}
+
+/**
+ * Add a seat to Team plan subscription and invite a member
+ * This is used when the team has reached the base limit (10 users) and needs to add an extra seat
+ * 
+ * @param email - Email of the user to invite
+ * @returns Promise<InviteMemberResult>
+ */
+export async function addSeatAndInvite(email: string): Promise<InviteMemberResult> {
+  try {
+    const supabase = await createClient()
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      return {
+        success: false,
+        message: 'You must be logged in to invite members.'
+      }
+    }
+
+    // Get user's primary team
+    const { data: primaryTeamId, error: teamError } = await supabase.rpc('get_user_primary_team')
+    if (teamError || !primaryTeamId) {
+      return {
+        success: false,
+        message: 'No team found. Please contact support.'
+      }
+    }
+
+    // Verify user is an owner of the team
+    const { data: teamMember, error: memberError } = await supabase
+      .from('team_members')
+      .select('role')
+      .eq('team_id', primaryTeamId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (memberError || !teamMember || teamMember.role !== 'owner') {
+      return {
+        success: false,
+        message: 'Only team owners can invite members.'
+      }
+    }
+
+    // Verify user has Team plan
+    const subscription = await getUserSubscription(user.id)
+    if (!subscription?.stripe_subscription_id) {
+      return {
+        success: false,
+        message: 'No active subscription found. Please upgrade to Team plan.'
+      }
+    }
+
+    const plan = getPlanByStripePriceId(subscription.plan_id || '')
+    if (plan?.id !== 'TEAM') {
+      return {
+        success: false,
+        message: 'This feature is only available for Team plans.'
+      }
+    }
+
+    // Step 1: Add seat to Stripe subscription
+    try {
+      await addSingleSeat(subscription.stripe_subscription_id)
+    } catch (stripeError: any) {
+      console.error('[Team Action] Error adding seat to Stripe:', stripeError)
+      return {
+        success: false,
+        message: `Failed to add seat: ${stripeError.message || 'Stripe error'}. Please try again or contact support.`
+      }
+    }
+
+    // Step 2: Find user by email
+    let foundUserId: string | null = null
+    
+    try {
+      const { data: userData, error: findError } = await supabase.rpc('find_user_by_email', {
+        search_email: email.toLowerCase().trim()
+      })
+      
+      if (!findError && userData && userData.length > 0) {
+        foundUserId = userData[0].user_id
+      }
+    } catch (error) {
+      console.log('find_user_by_email function not found or error:', error)
+    }
+
+    // If user not found, we've already added the seat - this is a problem
+    // We could try to remove it, but for now we'll just return an error
+    if (!foundUserId) {
+      return {
+        success: false,
+        message: 'User not found. Ask them to sign up for a free account first. The seat has been added to your subscription - you can invite them once they sign up.'
+      }
+    }
+
+    // Check if they're already a team member
+    const { data: existingMember } = await supabase
+      .from('team_members')
+      .select('id')
+      .eq('team_id', primaryTeamId)
+      .eq('user_id', foundUserId)
+      .single()
+
+    if (existingMember) {
+      return {
+        success: false,
+        message: 'User is already a team member. The seat has been added to your subscription.'
+      }
+    }
+
+    // Step 3: Add them to the team
+    const { error: insertError } = await supabase
+      .from('team_members')
+      .insert({
+        team_id: primaryTeamId,
+        user_id: foundUserId,
+        role: 'member'
+      })
+
+    if (insertError) {
+      // Seat was added but invite failed - log this for manual cleanup
+      console.error('[Team Action] Seat added but invite failed:', insertError)
+      return {
+        success: false,
+        message: `Seat added to subscription, but failed to add member: ${insertError.message}. Please contact support.`
+      }
+    }
+
+    revalidatePath('/settings/team')
+    return {
+      success: true,
+      message: 'Seat added and member invited successfully!'
+    }
+  } catch (error: any) {
+    console.error('Error in addSeatAndInvite:', error)
     return {
       success: false,
       message: error.message || 'An unexpected error occurred.'

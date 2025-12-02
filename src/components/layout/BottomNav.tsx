@@ -4,7 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, History, Users, User, Settings } from 'lucide-react'
 
-export function BottomNav() {
+interface BottomNavProps {
+  userRole?: 'owner' | 'member' | null
+}
+
+export function BottomNav({ userRole }: BottomNavProps) {
   const pathname = usePathname()
 
   const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/')
@@ -13,7 +17,8 @@ export function BottomNav() {
     { label: 'Home', href: '/dashboard', icon: Home },
     { label: 'History', href: '/quotes', icon: History },
     { label: 'Clients', href: '/customers', icon: Users },
-    { label: 'Settings', href: '/settings/team', icon: Settings },
+    // Only show Settings for owners
+    ...(userRole === 'owner' ? [{ label: 'Settings', href: '/settings/team', icon: Settings }] : []),
   ]
 
   return (

@@ -18,6 +18,25 @@ export default async function DashboardLayout({
     if (error || !user) {
       redirect('/login')
     }
+
+    // Fetch user's role for RBAC
+    let userRole: 'owner' | 'member' | null = null
+    try {
+      const { data: teamMember, error: roleError } = await supabase
+        .from('team_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle()
+      
+      if (!roleError && teamMember) {
+        userRole = teamMember.role as 'owner' | 'member'
+      }
+    } catch (error) {
+      console.error('[Dashboard Layout] Error fetching user role:', error)
+      // Continue without role - will default to showing all items
+    }
+
     return (
       <DashboardWrapper>
         <div className="min-h-screen bg-gray-50">
@@ -41,7 +60,7 @@ export default async function DashboardLayout({
           </main>
 
           {/* Mobile Bottom Navigation */}
-          <BottomNav />
+          <BottomNav userRole={userRole} />
         </div>
       </DashboardWrapper>
     )
