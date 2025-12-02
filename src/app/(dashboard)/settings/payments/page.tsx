@@ -166,16 +166,10 @@ function PaymentsSettingsContent() {
   }
 
   const hasStripeConnect = !!user?.stripe_connect_id
+  const payoutsEnabled = user?.payouts_enabled || false
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Payment Settings</h1>
-          <p className="text-gray-600">
-            Set up Stripe Connect to receive payouts for your services
-          </p>
-        </div>
+    <div className="max-w-2xl">
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-start gap-4">
@@ -183,22 +177,26 @@ function PaymentsSettingsContent() {
               <CreditCard className="h-6 w-6 text-blue-600" />
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Stripe Connect</h2>
-              <p className="text-gray-600 mb-4">
-                Connect your Stripe account to receive payments directly. You'll be able to accept
-                payments from customers and receive payouts to your bank account.
-              </p>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Payout Settings</h2>
 
               {hasStripeConnect ? (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-green-600">
-                    <CheckCircle className="h-5 w-5" />
-                    <span className="font-medium">Stripe Connect account is set up</span>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm text-gray-600 mb-1">Account ID:</p>
-                    <p className="text-sm font-mono text-gray-900">{user.stripe_connect_id}</p>
-                  </div>
+                  {payoutsEnabled ? (
+                    <>
+                      <p className="text-gray-600 mb-2">
+                        Payouts are active.
+                      </p>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                        Connected
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-gray-600 mb-2">
+                        Account connected, but payouts not yet enabled. Complete your onboarding to enable payouts.
+                      </p>
+                    </>
+                  )}
                   <Button
                     onClick={handleManageAccount}
                     disabled={onboarding}
@@ -212,7 +210,7 @@ function PaymentsSettingsContent() {
                       </>
                     ) : (
                       <>
-                        Manage Account
+                        View Payout Dashboard
                         <ExternalLink className="ml-2 h-4 w-4" />
                       </>
                     )}
@@ -220,13 +218,8 @@ function PaymentsSettingsContent() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-amber-600">
-                    <AlertCircle className="h-5 w-5" />
-                    <span className="font-medium">Stripe Connect account not set up</span>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Click the button below to start the onboarding process. You'll be redirected to
-                    Stripe to complete your account setup.
+                  <p className="text-gray-600">
+                    Connect a bank account to receive payments from invoices.
                   </p>
                   <Button
                     onClick={handleSetupPayouts}

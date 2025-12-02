@@ -433,26 +433,12 @@ function TeamManagementContent() {
     )
   }
 
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      {/* Header */}
-      <div className="mb-6">
-        <Link href="/dashboard">
-          <Button variant="ghost" className="mb-4">
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-        </Link>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="bg-blue-100 p-2 rounded-lg">
-            <Users className="h-6 w-6 text-blue-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
+      return (
+        <div className="max-w-4xl">
+          {/* Team Name */}
+          <div className="mb-6">
             <p className="text-gray-500">{teamName}</p>
           </div>
-        </div>
-      </div>
 
       {/* Invite Member Section (Owners Only) */}
       {currentUserRole === 'owner' && (

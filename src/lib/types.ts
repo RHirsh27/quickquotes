@@ -10,12 +10,19 @@ export interface User {
   state: string | null
   postal_code: string | null
   stripe_connect_id: string | null // Stripe Connect Account ID for payouts
+  payouts_enabled: boolean // Whether payouts are enabled for this Stripe Connect account
   created_at: string
 }
 
 export interface Team {
   id: string // uuid, PK
   name: string
+  default_tax_rate: number | null // Default tax rate percentage
+  company_address: string | null // Company headquarters address
+  company_phone: string | null // Company phone number
+  company_email: string | null // Company email address
+  company_website: string | null // Company website URL
+  default_quote_notes: string | null // Default terms & conditions text
   created_at: string
 }
 

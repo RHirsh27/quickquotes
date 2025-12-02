@@ -26,7 +26,7 @@ export default function QuoteDetailsPage() {
   const [quote, setQuote] = useState<any>(null)
   const [items, setItems] = useState<any[]>([])
   const [customer, setCustomer] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
+  const [team, setTeam] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [initialLoading, setInitialLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
@@ -64,17 +64,22 @@ export default function QuoteDetailsPage() {
         .single()
       setCustomer(custData)
 
-      // 4. Get User Profile
-      const { data: userData } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', quoteData.user_id)
-        .single()
-          setProfile(userData)
+      // 4. Get Team data (for PDF header)
+      if (quoteData.team_id) {
+        const { data: teamData } = await supabase
+          .from('teams')
+          .select('*')
+          .eq('id', quoteData.team_id)
+          .single()
+        setTeam(teamData)
+      } else {
+        // Fallback: create minimal team object if no team_id
+        setTeam({ name: 'Service Company' })
+      }
 
-          setInitialLoading(false)
-          setLoading(false)
-        }
+      setInitialLoading(false)
+      setLoading(false)
+    }
 
         if (id) fetchQuoteData()
       }, [id])
@@ -84,7 +89,7 @@ export default function QuoteDetailsPage() {
   const handleShare = async () => {
     const shareData = {
       title: `Quote #${quote.quote_number}`,
-      text: `Here is the estimate from ${profile?.company_name || 'us'}.`,
+      text: `Here is the estimate from ${team?.name || 'us'}.`,
       url: window.location.href, // Sharing the link to this page (or your public PDF link if you build that later)
     }
 
@@ -107,7 +112,7 @@ export default function QuoteDetailsPage() {
   }
 
   const handleEmail = () => {
-    const subject = `Quote #${quote.quote_number} from ${profile?.company_name || 'My Business'}`
+    const subject = `Quote #${quote.quote_number} from ${team?.name || 'My Business'}`
     const body = `Hi ${customer.name},%0D%0A%0D%0AHere is the quote we discussed. You can view the details here:%0D%0A${window.location.href}%0D%0A%0D%0AThank you!`
     window.location.href = `mailto:${customer.email || ''}?subject=${subject}&body=${body}`
   }
@@ -236,7 +241,7 @@ export default function QuoteDetailsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {/* PDF Download */}
             <PDFDownloadLink
-              document={<QuotePDF quote={quote} items={items} customer={customer} userProfile={profile} />}
+              document={<QuotePDF quote={quote} items={items} customer={customer} team={team} />}
               fileName={`Quote-${quote.quote_number}.pdf`}
               className="w-full"
             >
@@ -282,9 +287,11 @@ export default function QuoteDetailsPage() {
           {/* Print Header */}
           <div className="flex justify-between items-start mb-8 border-b pb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{profile?.company_name}</h2>
-              <p className="text-gray-500">{profile?.phone}</p>
-              <p className="text-gray-500">{profile?.email}</p>
+              <h2 className="text-2xl font-bold text-gray-900">{team?.name || 'Service Company'}</h2>
+              {team?.company_address && <p className="text-gray-500">{team.company_address}</p>}
+              {team?.company_phone && <p className="text-gray-500">{team.company_phone}</p>}
+              {team?.company_email && <p className="text-gray-500">{team.company_email}</p>}
+              {team?.company_website && <p className="text-gray-500">{team.company_website}</p>}
             </div>
             <div className="text-right">
               <h3 className="text-xl font-bold text-blue-600">QUOTE</h3>

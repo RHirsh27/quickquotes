@@ -49,6 +49,7 @@ export default function NewQuotePage() {
   const [items, setItems] = useState<LineItemState[]>([])
   const [taxRate, setTaxRate] = useState(0) // Tax rate percentage
   const [jobSummary, setJobSummary] = useState('') // Job summary / scope of work
+  const [notes, setNotes] = useState('') // Quote notes/terms
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -63,10 +64,11 @@ export default function NewQuotePage() {
         .eq('user_id', user.id)
         .order('name')
       
-      // Fetch service presets for the team (members can use presets)
+      // Fetch service presets and team defaults
       // Get user's primary team
       const { data: teamId } = await supabase.rpc('get_user_primary_team')
       if (teamId) {
+        // Fetch presets
         const { data: presetData } = await supabase
           .from('service_presets')
           .select('*')
@@ -74,6 +76,22 @@ export default function NewQuotePage() {
           .order('name')
         
         if (presetData) setPresets(presetData)
+
+        // Fetch team defaults
+        const { data: teamData } = await supabase
+          .from('teams')
+          .select('default_tax_rate, default_quote_notes')
+          .eq('id', teamId)
+          .single()
+        
+        if (teamData) {
+          if (teamData.default_tax_rate !== null && teamData.default_tax_rate !== undefined) {
+            setTaxRate(teamData.default_tax_rate)
+          }
+          if (teamData.default_quote_notes) {
+            setNotes(teamData.default_quote_notes)
+          }
+        }
       } else {
         // Fallback to user_id if no team found (backwards compatibility)
         const { data: presetData } = await supabase
@@ -270,7 +288,7 @@ export default function NewQuotePage() {
         tax_rate: Number(taxRate) || 0,
         total: Number(total) || 0,
         job_summary: jobSummary.trim() || null,
-        notes: null
+        notes: sanitizeString(notes) || null
       }
       
       console.log('Creating quote with data:', quoteData)
@@ -533,7 +551,19 @@ export default function NewQuotePage() {
           </div>
         </div>
 
-        {/* 3. TOTALS SECTION */}
+        {/* 3. NOTES SECTION */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+          <h2 className="font-semibold text-gray-800 mb-3">Terms & Conditions / Notes</h2>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Enter terms, conditions, or additional notes for this quote..."
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y text-sm"
+          />
+        </div>
+
+        {/* 4. TOTALS SECTION */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
           <div className="flex justify-between text-gray-600">
             <span>Subtotal</span>

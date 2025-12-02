@@ -1,13 +1,13 @@
 'use client'
 
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
-import type { Quote, QuoteLineItem, Customer, User } from '@/lib/types'
+import type { Quote, QuoteLineItem, Customer, Team } from '@/lib/types'
 
 interface QuotePDFProps {
   quote: Quote
   items: QuoteLineItem[]
   customer: Customer
-  userProfile: User
+  team: Team
 }
 
 const styles = StyleSheet.create({
@@ -47,24 +47,20 @@ const styles = StyleSheet.create({
   notesSection: { marginTop: 40, padding: 10, backgroundColor: '#f9fafb' }
 })
 
-export const QuotePDF = ({ quote, items, customer, userProfile }: QuotePDFProps) => (
+export const QuotePDF = ({ quote, items, customer, team }: QuotePDFProps) => (
   <Document>
     <Page size="A4" style={styles.page}>
       
-      {/* Header: User's Company Name & Info */}
+      {/* Header: Team Company Name & Info */}
       <View style={styles.header}>
         <View>
           <Text style={styles.companyName}>
-            {userProfile?.company_name || 'Service Company'}
+            {team?.name || 'Service Company'}
           </Text>
-          {userProfile?.address_line_1 && <Text>{userProfile.address_line_1}</Text>}
-          {userProfile?.city && userProfile?.state && (
-            <Text>
-              {userProfile.city}, {userProfile.state} {userProfile.postal_code || ''}
-            </Text>
-          )}
-          {userProfile?.phone && <Text>{userProfile.phone}</Text>}
-          {userProfile?.full_name && <Text>{userProfile.full_name}</Text>}
+          {team?.company_address && <Text>{team.company_address}</Text>}
+          {team?.company_phone && <Text>{team.company_phone}</Text>}
+          {team?.company_email && <Text>{team.company_email}</Text>}
+          {team?.company_website && <Text>{team.company_website}</Text>}
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={{ fontSize: 24, color: '#2563eb' }}>ESTIMATE</Text>

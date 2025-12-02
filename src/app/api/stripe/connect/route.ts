@@ -34,27 +34,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // If user already has a Connect account, create account link for management
+    // If user already has a Connect account, create login link for dashboard access
     if (userProfile?.stripe_connect_id) {
       const stripe = getStripe()
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
-
-      // Check account status to determine link type
-      const account = await stripe.accounts.retrieve(userProfile.stripe_connect_id)
       
-      // If account is not fully onboarded, use onboarding link
-      // Otherwise, use account management link
-      const linkType = account.details_submitted ? 'account_update' : 'account_onboarding'
-
-      const accountLink = await stripe.accountLinks.create({
-        account: userProfile.stripe_connect_id,
-        refresh_url: `${baseUrl}/settings/payments?refresh=true`,
-        return_url: `${baseUrl}/settings/payments?success=true`,
-        type: linkType,
-      })
+      // Create login link for Stripe Express dashboard
+      const loginLink = await stripe.accounts.createLoginLink(userProfile.stripe_connect_id)
 
       return NextResponse.json({
-        url: accountLink.url,
+        url: loginLink.url,
         accountId: userProfile.stripe_connect_id,
       })
     }

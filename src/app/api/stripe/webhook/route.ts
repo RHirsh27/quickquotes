@@ -188,6 +188,38 @@ export async function POST(req: NextRequest) {
         break
       }
 
+      case 'account.updated': {
+        const account = event.data.object as Stripe.Account
+        
+        // Find user by stripe_connect_id (more reliable than metadata)
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('stripe_connect_id', account.id)
+          .single()
+
+        if (userError || !userData) {
+          console.error('[Webhook] No user found for Stripe Connect account:', account.id)
+          break
+        }
+
+        // Update payouts_enabled status based on account.payouts_enabled
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            payouts_enabled: account.payouts_enabled || false,
+          })
+          .eq('stripe_connect_id', account.id)
+
+        if (updateError) {
+          console.error('[Webhook] Error updating payouts_enabled:', updateError)
+          throw updateError
+        }
+
+        console.log(`[Webhook] Updated payouts_enabled for account ${account.id}: ${account.payouts_enabled}`)
+        break
+      }
+
       default:
         console.warn(`[Webhook] Unhandled event type: ${event.type}`)
     }
