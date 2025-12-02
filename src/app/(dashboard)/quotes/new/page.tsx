@@ -176,6 +176,36 @@ export default function NewQuotePage() {
         return
       }
 
+      // Get user's team_id (required for RLS policies)
+      let teamId: string | null = null
+      try {
+        // Try RPC function first
+        const { data: primaryTeamId, error: teamError } = await supabase.rpc('get_user_primary_team')
+        if (!teamError && primaryTeamId) {
+          teamId = primaryTeamId
+        } else {
+          // Fallback: query team_members directly
+          const { data: teamMember, error: tmError } = await supabase
+            .from('team_members')
+            .select('team_id')
+            .eq('user_id', user.id)
+            .limit(1)
+            .maybeSingle()
+          
+          if (!tmError && teamMember) {
+            teamId = teamMember.team_id
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching team_id:', error)
+      }
+
+      if (!teamId) {
+        toast.error('Unable to determine your team. Please contact support.')
+        setLoading(false)
+        return
+      }
+
       // 1. Handle Customer (Get ID or Create New)
       let finalCustomerId = selectedCustomerId
       
@@ -214,6 +244,7 @@ export default function NewQuotePage() {
           .from('customers')
           .insert({
             user_id: user.id,
+            team_id: teamId, // Required for RLS
             ...sanitizedCustomer
           })
           .select()
@@ -229,6 +260,7 @@ export default function NewQuotePage() {
       // Validate all numeric values are valid numbers
       const quoteData = {
         user_id: user.id,
+        team_id: teamId, // Required for RLS
         customer_id: finalCustomerId,
         quote_number: quoteNumber,
         status: status,
