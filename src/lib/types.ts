@@ -91,15 +91,35 @@ export interface Subscription {
 export interface Invoice {
   id: string // uuid, PK
   user_id: string // uuid, FK -> users.id
-  stripe_invoice_id: string // Stripe Invoice ID (unique)
-  status: 'pending' | 'paid' | 'failed' | 'void' | 'uncollectible'
-  amount: number | null // Amount in cents
+  team_id: string | null // uuid, FK -> teams.id (for quote-converted invoices)
+  customer_id: string | null // uuid, FK -> customers.id (for quote-converted invoices)
+  quote_id: string | null // uuid, FK -> quotes.id (links back to original quote)
+  invoice_number: string | null // Unique invoice number (e.g., "INV-1001")
+  stripe_invoice_id: string | null // Stripe Invoice ID (unique, for Stripe Connect invoices)
+  status: 'pending' | 'paid' | 'failed' | 'void' | 'uncollectible' | 'unpaid' // 'unpaid' for quote-converted invoices
+  amount: number | null // Amount in cents (for Stripe Connect invoices)
+  total: number | null // Total invoice amount (for quote-converted invoices)
+  amount_paid: number | null // Amount paid so far
   currency: string | null // Currency code (e.g., 'usd')
   description: string | null
   job_summary: string | null // Scope of work / job summary
   customer_email: string | null
   customer_name: string | null
+  due_date: string | null // Due date for payment
+  stripe_payment_intent_id: string | null // Stripe Payment Intent ID
   created_at: string
   updated_at: string
   paid_at: string | null // When the invoice was marked as paid
+}
+
+export interface InvoiceItem {
+  id: string // uuid, PK
+  invoice_id: string // uuid, FK -> invoices.id
+  label: string // Service name
+  description: string | null
+  quantity: number // numeric
+  unit_price: number // numeric
+  taxable: boolean
+  position: number // int - For ordering
+  created_at: string
 }

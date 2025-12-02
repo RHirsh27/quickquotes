@@ -47,7 +47,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Get amount (in cents)
-    const amount = invoice.amount
+    // Handle both quote-converted invoices (total in dollars) and Stripe Connect invoices (amount in cents)
+    let amount: number
+    if (invoice.total) {
+      // Quote-converted invoice: total is in dollars, convert to cents
+      amount = Math.round(invoice.total * 100)
+    } else if (invoice.amount) {
+      // Stripe Connect invoice: amount is already in cents
+      amount = invoice.amount
+    } else {
+      return NextResponse.json(
+        { error: 'Invalid invoice amount' },
+        { status: 400 }
+      )
+    }
+
     if (!amount || amount <= 0) {
       return NextResponse.json(
         { error: 'Invalid invoice amount' },
@@ -59,6 +73,8 @@ export async function POST(req: NextRequest) {
     const techUser = invoice.users as any
     const techStripeConnectId = techUser?.stripe_connect_id
 
+    // For quote-converted invoices, we need Stripe Connect
+    // For Stripe Connect invoices, we also need it
     if (!techStripeConnectId) {
       return NextResponse.json(
         { error: 'Service provider has not set up payment processing yet' },

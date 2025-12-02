@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui'
 import SupportWidget from '@/components/SupportWidget'
 import Link from 'next/link'
-import { Home, History, Users, BookOpen, Settings } from 'lucide-react'
+import { Home, History, Users, BookOpen, Settings, FileText } from 'lucide-react'
 
 export default function Navbar() {
   const router = useRouter()
@@ -22,6 +22,7 @@ export default function Navbar() {
   const navLinks = [
     { href: '/dashboard', label: 'Home', icon: Home },
     { href: '/quotes', label: 'History', icon: History },
+    { href: '/invoices', label: 'Invoices', icon: FileText },
     { href: '/customers', label: 'Clients', icon: Users },
     { href: '/price-book', label: 'Price Book', icon: BookOpen },
   ]

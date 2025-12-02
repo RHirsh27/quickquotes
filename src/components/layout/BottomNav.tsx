@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, History, Users, User, Settings, BookOpen } from 'lucide-react'
+import { Home, History, Users, User, Settings, BookOpen, FileText } from 'lucide-react'
 
 interface BottomNavProps {
   userRole?: 'owner' | 'member' | null
@@ -16,6 +16,7 @@ export function BottomNav({ userRole }: BottomNavProps) {
   const navItems = [
     { label: 'Home', href: '/dashboard', icon: Home },
     { label: 'History', href: '/quotes', icon: History },
+    { label: 'Invoices', href: '/invoices', icon: FileText },
     { label: 'Clients', href: '/customers', icon: Users },
     { label: 'Price Book', href: '/price-book', icon: BookOpen },
     // Only show Settings for owners

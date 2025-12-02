@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui'
-import { ChevronLeft, Download, Share2, Printer, Mail, MessageCircle, Trash2 } from 'lucide-react'
+import { ChevronLeft, Download, Share2, Printer, Mail, MessageCircle, Trash2, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { QuotePDF } from '@/components/quotes/QuotePDF'
 import dynamic from 'next/dynamic'
 import toast from 'react-hot-toast'
+import { convertQuoteToInvoice } from '@/app/actions/invoices'
+import { LoadingButton } from '@/components/ui/LoadingButton'
 
 // Dynamically import PDF to avoid server-side errors
 const PDFDownloadLink = dynamic(
@@ -28,6 +30,7 @@ export default function QuoteDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [initialLoading, setInitialLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
+  const [converting, setConverting] = useState(false)
 
   useEffect(() => {
     async function fetchQuoteData() {
@@ -114,6 +117,44 @@ export default function QuoteDetailsPage() {
     window.location.href = `sms:${customer.phone || ''}?&body=${body}`
   }
 
+  const handleConvertToInvoice = async () => {
+    if (!quote) return
+
+    // Check if quote is already accepted
+    if (quote.status === 'accepted') {
+      // Check if invoice already exists
+      const { data: existingInvoice } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('quote_id', quote.id)
+        .maybeSingle()
+
+      if (existingInvoice) {
+        toast.info('This quote has already been converted to an invoice.')
+        router.push(`/invoices/${existingInvoice.id}`)
+        return
+      }
+    }
+
+    setConverting(true)
+
+    try {
+      const result = await convertQuoteToInvoice(quote.id)
+
+      if (result.success && result.invoiceId) {
+        toast.success(result.message)
+        router.push(`/invoices/${result.invoiceId}`)
+      } else {
+        toast.error(result.message || 'Failed to convert quote to invoice')
+        setConverting(false)
+      }
+    } catch (error: any) {
+      console.error('Error converting quote to invoice:', error)
+      toast.error(`Failed to convert quote: ${error.message || 'Unknown error'}`)
+      setConverting(false)
+    }
+  }
+
   const handleDelete = async () => {
     // Show confirmation dialog
     const confirmed = window.confirm(
@@ -179,6 +220,19 @@ export default function QuoteDetailsPage() {
         
         {/* Action Buttons - Hide when printing */}
         <div className="space-y-3 print:hidden">
+          {/* Convert to Invoice Button - Primary action */}
+          {quote && quote.status !== 'accepted' && (
+            <LoadingButton
+              onClick={handleConvertToInvoice}
+              loading={converting}
+              loadingText="Converting..."
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Convert to Invoice
+            </LoadingButton>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {/* PDF Download */}
             <PDFDownloadLink

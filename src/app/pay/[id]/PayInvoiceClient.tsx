@@ -7,9 +7,10 @@ import toast from 'react-hot-toast'
 
 interface PayInvoiceClientProps {
   invoiceId: string
+  invoiceTotal: number
 }
 
-export default function PayInvoiceClient({ invoiceId }: PayInvoiceClientProps) {
+export default function PayInvoiceClient({ invoiceId, invoiceTotal }: PayInvoiceClientProps) {
   const [loading, setLoading] = useState(false)
 
   const handlePayNow = async () => {
@@ -46,7 +47,7 @@ export default function PayInvoiceClient({ invoiceId }: PayInvoiceClientProps) {
     <Button
       onClick={handlePayNow}
       disabled={loading}
-      className="w-full h-12 text-lg"
+      className="w-full h-14 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
     >
       {loading ? (
         <>
