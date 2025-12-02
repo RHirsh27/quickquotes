@@ -74,10 +74,10 @@ export default async function Dashboard() {
         .from('users')
         .select('*')
         .eq('id', user.id)
-        .single()
+        .maybeSingle() // Use maybeSingle() to handle missing profiles gracefully
       
       if (profileError) {
-        // PGRST116 means no rows found - this is okay, we'll use defaults
+        // Log non-PGRST116 errors (PGRST116 means no rows found, which is okay)
         if (profileError.code !== 'PGRST116') {
           console.error('[Dashboard] Error fetching user profile:', profileError)
           console.error('[Dashboard] Profile error details:', {
@@ -106,13 +106,40 @@ export default async function Dashboard() {
     // Get user's primary team and role - handle missing team gracefully
     let teamId: string | null = null
     try {
-      // Try RPC function first
-      const { data: primaryTeamId, error: teamError } = await supabase.rpc('get_user_primary_team')
-      
-      if (teamError) {
-        // RPC failed - try direct query fallback
-        console.warn('[Dashboard] RPC failed, trying direct query:', teamError.message)
+      // Try RPC function first (if it exists)
+      try {
+        const { data: primaryTeamId, error: teamError } = await supabase.rpc('get_user_primary_team')
         
+        if (teamError) {
+          // RPC function might not exist or failed - try direct query fallback
+          // PGRST428 means function doesn't exist, which is okay
+          if (teamError.code !== 'PGRST428') {
+            console.warn('[Dashboard] RPC failed, trying direct query:', teamError.message)
+          }
+        } else if (primaryTeamId) {
+          teamId = primaryTeamId
+          console.log('[Dashboard] Found primary team via RPC:', teamId)
+          
+          // Fetch user's role
+          const { data: teamMember, error: roleError } = await supabase
+            .from('team_members')
+            .select('role')
+            .eq('team_id', primaryTeamId)
+            .eq('user_id', user.id)
+            .maybeSingle() // Use maybeSingle() for graceful handling
+          
+          if (!roleError && teamMember) {
+            userRole = teamMember.role as 'owner' | 'member'
+            console.log('[Dashboard] User role:', userRole)
+          }
+        }
+      } catch (rpcError) {
+        // RPC function might not exist - fall through to direct query
+        console.warn('[Dashboard] RPC call failed, using direct query fallback:', rpcError instanceof Error ? rpcError.message : 'Unknown error')
+      }
+      
+      // Fallback: Direct query if RPC didn't work or returned no team
+      if (!teamId) {
         const { data: teamMemberData, error: teamMemberError } = await supabase
           .from('team_members')
           .select('team_id, role')
@@ -127,29 +154,17 @@ export default async function Dashboard() {
         } else if (teamMemberError && teamMemberError.code !== 'PGRST116') {
           // PGRST116 means no rows found - this is okay for new users
           console.warn('[Dashboard] No team found for user (this is okay for new users):', teamMemberError.message)
+        } else {
+          // No team found - this is okay, user might be new
+          console.log('[Dashboard] No team found for user (will show empty stats):', user.id)
         }
-      } else if (primaryTeamId) {
-        teamId = primaryTeamId
-        console.log('[Dashboard] Found primary team via RPC:', teamId)
-        
-        // Fetch user's role
-        const { data: teamMember, error: roleError } = await supabase
-          .from('team_members')
-          .select('role')
-          .eq('team_id', primaryTeamId)
-          .eq('user_id', user.id)
-          .maybeSingle() // Use maybeSingle() for graceful handling
-        
-        if (!roleError && teamMember) {
-          userRole = teamMember.role as 'owner' | 'member'
-          console.log('[Dashboard] User role:', userRole)
-        }
-      } else {
-        // No team found - this is okay, user might be new
-        console.log('[Dashboard] No primary team found for user (will show empty stats):', user.id)
       }
     } catch (error) {
       console.error('[Dashboard] Exception getting team ID:', error)
+      console.error('[Dashboard] Team ID exception details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      })
       // Continue without team - will show empty stats
     }
 
