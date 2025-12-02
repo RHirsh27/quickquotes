@@ -19,9 +19,42 @@ export interface PricingPlan {
   seatPrice?: number // Price per additional seat (for Team plan overage)
 }
 
-export const EXTRA_SEAT_PRICE_ID = ""; // I will fill this in
+// =============================================================================
+// ⚠️ CRITICAL: STRIPE PRICE IDs MUST BE CONFIGURED BEFORE PRODUCTION LAUNCH
+// =============================================================================
+// Follow these steps to set up Stripe pricing:
+//
+// 1. Go to Stripe Dashboard > Products: https://dashboard.stripe.com/products
+// 2. Create 4 recurring products with the following details:
+//
+//    Product 1: "Solo Plan"
+//      - Price: $29/month (recurring)
+//      - Copy the Price ID (starts with "price_") and paste below as SOLO stripePriceId
+//      - Also set in .env: NEXT_PUBLIC_STRIPE_PRICE_SOLO=price_xxx
+//
+//    Product 2: "Crew Plan"
+//      - Price: $99/month (recurring)
+//      - Copy the Price ID and paste below as CREW stripePriceId
+//      - Also set in .env: NEXT_PUBLIC_STRIPE_PRICE_CREW=price_xxx
+//
+//    Product 3: "Team Plan"
+//      - Price: $199/month (recurring)
+//      - Copy the Price ID and paste below as TEAM stripePriceId
+//      - Also set in .env: NEXT_PUBLIC_STRIPE_PRICE_TEAM=price_xxx
+//
+//    Product 4: "Extra Seat" (for Team plan overage)
+//      - Price: $25/month (recurring)
+//      - Copy the Price ID and paste below as EXTRA_SEAT_PRICE_ID
+//      - Also set in .env: NEXT_PUBLIC_STRIPE_EXTRA_SEAT_PRICE_ID=price_xxx
+//
+// 3. Update both this file AND your .env file with the Price IDs
+// 4. Verify all IDs match between this file and environment variables
+// 5. Test checkout flow before launching
+// =============================================================================
 
-export const APPLICATION_FEE_PERCENT = 0.01; // 1%
+export const EXTRA_SEAT_PRICE_ID = ""; // TODO: Set this to your Stripe Price ID for extra seats ($25/month)
+
+export const APPLICATION_FEE_PERCENT = 0.01; // 1% platform fee on Stripe Connect payments
 
 export const PRICING_PLANS: Record<PlanId, PricingPlan> = {
   SOLO: {
@@ -30,7 +63,7 @@ export const PRICING_PLANS: Record<PlanId, PricingPlan> = {
     price: 29,
     interval: "month",
     userLimit: 1,
-    stripePriceId: "",
+    stripePriceId: "", // TODO: Set this to your Stripe Price ID (from Stripe Dashboard > Products)
     description: "For the owner-operator.",
     features: ["Unlimited Quotes", "Branded PDF", "Client History", "Accept Credit Cards"]
   },
@@ -40,7 +73,7 @@ export const PRICING_PLANS: Record<PlanId, PricingPlan> = {
     price: 99,
     interval: "month",
     userLimit: 5,
-    stripePriceId: "",
+    stripePriceId: "", // TODO: Set this to your Stripe Price ID (from Stripe Dashboard > Products)
     description: "For small crews (up to 5).",
     features: ["Everything in Solo", "Up to 5 Users", "Shared Price Book", "Team Dashboard"],
     label: "Best Value"
@@ -51,7 +84,7 @@ export const PRICING_PLANS: Record<PlanId, PricingPlan> = {
     price: 199,
     interval: "month",
     userLimit: 10,
-    stripePriceId: "",
+    stripePriceId: "", // TODO: Set this to your Stripe Price ID (from Stripe Dashboard > Products)
     description: "For growing businesses.",
     features: ["Everything in Crew", "Up to 10 Users", "Role Permissions", "Priority Support"],
     footer: "+ $25/seat after 10 users",
