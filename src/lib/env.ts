@@ -25,11 +25,12 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   
   // App URL - optional (defaults to localhost in development)
-  // Preprocess empty strings to undefined, then validate as URL or undefined
-  NEXT_PUBLIC_APP_URL: z.preprocess(
-    (val) => (val === "" || val === undefined ? undefined : val),
-    z.string().url("NEXT_PUBLIC_APP_URL must be a valid URL").optional()
-  ),
+  // Accept undefined, empty string (treated as undefined), or valid URL
+  NEXT_PUBLIC_APP_URL: z.union([
+    z.string().url("NEXT_PUBLIC_APP_URL must be a valid URL"),
+    z.literal(""),
+    z.undefined()
+  ]).optional(),
 });
 
 /**
@@ -59,6 +60,10 @@ function validateEnv() {
   }
 
   // Validate at runtime - Stripe vars are optional
+  // Preprocess NEXT_PUBLIC_APP_URL: convert empty string to undefined
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  const processedAppUrl = appUrl === "" ? undefined : appUrl;
+  
   return envSchema.parse({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -68,7 +73,7 @@ function validateEnv() {
     NEXT_PUBLIC_STRIPE_PRICE_CREW: process.env.NEXT_PUBLIC_STRIPE_PRICE_CREW,
     NEXT_PUBLIC_STRIPE_PRICE_TEAM: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_APP_URL: processedAppUrl,
   });
 }
 
