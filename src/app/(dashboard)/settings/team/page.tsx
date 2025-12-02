@@ -511,7 +511,7 @@ function TeamManagementContent() {
       {/* Team Members List */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Team Members ({members.length} {teamLimit && currentPlan === 'TEAM' && members.length >= 10 ? '+' : `of ${teamLimit.maxUsers}`})
+          Team Members ({members.length} {teamLimit ? (currentPlan === 'TEAM' && members.length >= 10 ? '+' : `of ${teamLimit.maxUsers}`) : ''})
         </h2>
         
         {members.length === 0 ? (
