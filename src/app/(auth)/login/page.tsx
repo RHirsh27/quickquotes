@@ -207,15 +207,16 @@ function AuthPageContent() {
               }
             } catch (checkoutError: any) {
               console.error('Error creating checkout session:', checkoutError)
-              // If checkout fails, still redirect to verify email
-              toast.error('Account created but payment setup failed. Please complete payment later.')
-              router.push('/verify-email')
+              // If checkout fails, redirect to finish-setup to complete payment
+              toast.error('Account created but payment setup failed. Please complete payment to continue.')
+              router.push('/finish-setup')
               return
             }
           }
 
-          // No plan selected or Stripe Price ID not configured - redirect to verify email
-          router.push('/verify-email')
+          // No plan selected or Stripe Price ID not configured - redirect to finish-setup
+          toast.success('Account created! Please select a plan to continue.')
+          router.push('/finish-setup')
           return
         } else {
           // LOGIN FLOW
@@ -241,6 +242,7 @@ function AuthPageContent() {
           })
           if (error) throw error
           toast.success('Welcome back!')
+          // Redirect to dashboard - layout will check subscription and redirect to /finish-setup if needed
           window.location.href = '/dashboard'
         }
       } catch (error: any) {

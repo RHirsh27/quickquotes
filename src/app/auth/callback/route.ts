@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
+  // Redirect to dashboard - layout will check subscription and redirect to /finish-setup if needed
   const next = searchParams.get('next') ?? '/dashboard'
   const code = searchParams.get('code') // Sometimes sent as 'code' instead of hash
 

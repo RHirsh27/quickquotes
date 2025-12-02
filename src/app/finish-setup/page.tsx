@@ -119,25 +119,25 @@ export default function FinishSetupPage() {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-16 md:py-24">
-        <div className="max-w-4xl mx-auto text-center mb-12">
-          <div className="mx-auto h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-            <CreditCard className="h-8 w-8 text-blue-600" />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Complete Your Setup
-          </h1>
-          <p className="text-xl text-gray-600 mb-2">
-            Please complete your payment to access your dashboard.
-          </p>
-          <p className="text-sm text-gray-500">
-            Choose a plan below to get started with Quotd.
-          </p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center px-4 py-16">
+        <div className="max-w-6xl w-full">
+          {/* Centered Card */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 md:p-12 mb-8">
+            <div className="text-center mb-8">
+              <div className="mx-auto h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+                <CreditCard className="h-8 w-8 text-blue-600" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                One Last Step
+              </h1>
+              <p className="text-lg text-gray-600">
+                Please select a plan to activate your account.
+              </p>
+            </div>
 
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {getPlansForUI().map((plan) => {
+            {/* Pricing Cards */}
+            <div className="grid md:grid-cols-3 gap-8">
+              {getPlansForUI().map((plan) => {
             const Icon = plan.icon
             const isLoading = loading === plan.id
 
@@ -235,16 +235,15 @@ export default function FinishSetupPage() {
               </div>
             )
           })}
-        </div>
+            </div>
 
-        {/* Additional Info */}
-        <div className="mt-16 text-center max-w-2xl mx-auto">
-          <p className="text-gray-600 mb-4">
-            All plans include a 14-day free trial. Cancel anytime.
-          </p>
-          <p className="text-sm text-gray-500">
-            Questions? <a href="mailto:support@quotd.com" className="text-blue-600 hover:underline">Contact our team</a>
-          </p>
+            {/* Additional Info */}
+            <div className="mt-8 text-center">
+              <p className="text-sm text-gray-500">
+                Questions? <a href="mailto:support@quotd.com" className="text-blue-600 hover:underline">Contact our team</a>
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
