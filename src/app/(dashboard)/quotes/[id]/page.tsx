@@ -130,7 +130,7 @@ export default function QuoteDetailsPage() {
         .maybeSingle()
 
       if (existingInvoice) {
-        toast.info('This quote has already been converted to an invoice.')
+        toast('This quote has already been converted to an invoice.', { icon: 'ℹ️' })
         router.push(`/invoices/${existingInvoice.id}`)
         return
       }
