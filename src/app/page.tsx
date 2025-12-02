@@ -206,71 +206,152 @@ export default function LandingPage() {
         <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">
           Simple, Transparent Pricing
         </h2>
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {getAllPlans().map((plan) => {
-            const isHighlighted = plan.label === 'Most Popular'
-            return (
-              <div
-                key={plan.id}
-                className={`relative bg-white rounded-xl shadow-lg border-2 transition-all hover:shadow-xl ${
-                  isHighlighted
-                    ? 'border-blue-600 scale-105 md:scale-110'
-                    : 'border-gray-200'
-                }`}
-              >
-                {/* Most Popular Badge */}
-                {isHighlighted && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                      {plan.label}
-                    </span>
-                  </div>
-                )}
-
-                <div className="p-8">
-                  {/* Plan Name */}
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                    {plan.name}
-                  </h3>
-
-                  {/* Price */}
-                  <div className="mb-6">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-gray-900">
-                        ${plan.price}
-                      </span>
-                      <span className="text-gray-600">/{plan.interval}</span>
-                    </div>
-                  </div>
-
-                  {/* Features */}
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-gray-700">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* CTA Button */}
-                  <Link href="/login" className="block">
-                    <Button
-                      className={`w-full ${
+        {/* Row 1: Solo, Crew, Squad (3 columns) */}
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-8">
+          {getAllPlans()
+            .filter((plan) => ['SOLO', 'CREW', 'SQUAD'].includes(plan.id))
+            .map((plan) => {
+              const isHighlighted = plan.label === 'Most Popular'
+              return (
+                <div
+                  key={plan.id}
+                  className={`relative bg-white rounded-xl shadow-lg border-2 transition-all hover:shadow-xl ${
+                    isHighlighted
+                      ? 'border-blue-600 scale-105 md:scale-110'
+                      : 'border-gray-200'
+                  }`}
+                >
+                  {/* Badge */}
+                  {plan.label && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <span className={`px-4 py-1 rounded-full text-sm font-semibold ${
                         isHighlighted
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : ''
-                      }`}
-                      variant={isHighlighted ? 'primary' : 'outline'}
-                    >
-                      Get Started
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700'
+                      }`}>
+                        {plan.label}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="p-8">
+                    {/* Plan Name */}
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                      {plan.name}
+                    </h3>
+
+                    {/* Price */}
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-bold text-gray-900">
+                          ${plan.price}
+                        </span>
+                        <span className="text-gray-600">/{plan.interval}</span>
+                      </div>
+                    </div>
+
+                    {/* Features */}
+                    <ul className="space-y-3 mb-8">
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-gray-700">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* CTA Button */}
+                    <Link href="/login" className="block">
+                      <Button
+                        className={`w-full ${
+                          isHighlighted
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                            : ''
+                        }`}
+                        variant={isHighlighted ? 'primary' : 'outline'}
+                      >
+                        Get Started
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+        </div>
+
+        {/* Row 2: Fleet, Enterprise (2 columns, centered) */}
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          {getAllPlans()
+            .filter((plan) => ['FLEET', 'ENTERPRISE'].includes(plan.id))
+            .map((plan) => {
+              const isHighlighted = plan.label === 'Most Popular'
+              return (
+                <div
+                  key={plan.id}
+                  className={`relative bg-white rounded-xl shadow-lg border-2 transition-all hover:shadow-xl ${
+                    isHighlighted
+                      ? 'border-blue-600 scale-105 md:scale-110'
+                      : 'border-gray-200'
+                  }`}
+                >
+                  {/* Badge */}
+                  {plan.label && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <span className={`px-4 py-1 rounded-full text-sm font-semibold ${
+                        isHighlighted
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700'
+                      }`}>
+                        {plan.label}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="p-8">
+                    {/* Plan Name */}
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                      {plan.name}
+                    </h3>
+
+                    {/* Price */}
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-bold text-gray-900">
+                          ${plan.price}
+                        </span>
+                        <span className="text-gray-600">/{plan.interval}</span>
+                      </div>
+                    </div>
+
+                    {/* Features */}
+                    <ul className="space-y-3 mb-8">
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-gray-700">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* CTA Button */}
+                    <Link href="/login" className="block">
+                      <Button
+                        className={`w-full ${
+                          isHighlighted
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                            : ''
+                        }`}
+                        variant={isHighlighted ? 'primary' : 'outline'}
+                      >
+                        Get Started
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
         </div>
       </section>
 

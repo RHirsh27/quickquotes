@@ -62,15 +62,29 @@ export default function NewQuotePage() {
         .eq('user_id', user.id)
         .order('name')
       
-      // Fetch service presets for this user
-      const { data: presetData } = await supabase
-        .from('service_presets')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('name')
+      // Fetch service presets for the team (members can use presets)
+      // Get user's primary team
+      const { data: teamId } = await supabase.rpc('get_user_primary_team')
+      if (teamId) {
+        const { data: presetData } = await supabase
+          .from('service_presets')
+          .select('*')
+          .eq('team_id', teamId)
+          .order('name')
+        
+        if (presetData) setPresets(presetData)
+      } else {
+        // Fallback to user_id if no team found (backwards compatibility)
+        const { data: presetData } = await supabase
+          .from('service_presets')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('name')
+        
+        if (presetData) setPresets(presetData)
+      }
       
       if (custData) setCustomers(custData)
-      if (presetData) setPresets(presetData)
     }
     fetchData()
   }, [supabase])

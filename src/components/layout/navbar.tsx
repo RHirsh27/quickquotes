@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
+import SupportWidget from '@/components/SupportWidget'
 
 export default function Navbar() {
   const router = useRouter()
@@ -21,9 +22,12 @@ export default function Navbar() {
             <h2 className="text-xl font-extrabold" style={{ fontWeight: 800 }}>Quotd</h2>
             <p className="text-xs text-gray-500 -mt-1">Instant Estimates</p>
           </div>
-          <Button variant="outline" onClick={handleSignOut}>
-            Log Out
-          </Button>
+          <div className="flex items-center gap-3">
+            <SupportWidget />
+            <Button variant="outline" onClick={handleSignOut}>
+              Log Out
+            </Button>
+          </div>
         </div>
       </div>
     </nav>

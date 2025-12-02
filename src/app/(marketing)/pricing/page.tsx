@@ -11,22 +11,28 @@ import { getAllPlans, type PricingPlan as ConfigPricingPlan } from '@/config/pri
 // Map plan IDs to icons
 const planIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   SOLO: Zap,
-  TEAM: Users,
-  BUSINESS: Building2,
+  CREW: Users,
+  SQUAD: Users,
+  FLEET: Building2,
+  ENTERPRISE: Building2,
 }
 
 // Map plan IDs to descriptions
 const planDescriptions: Record<string, string> = {
   SOLO: 'For the independent owner-operator.',
-  TEAM: 'For growing crews (Up to 3 Users).',
-  BUSINESS: 'For scaling companies (Unlimited).',
+  CREW: 'For growing crews (Up to 3 Users).',
+  SQUAD: 'For established teams (Up to 7 Users).',
+  FLEET: 'For larger operations (Up to 12 Users).',
+  ENTERPRISE: 'For unlimited scale and custom needs.',
 }
 
 // Map plan IDs to CTA text
 const planCTAs: Record<string, string> = {
   SOLO: 'Start Solo',
-  TEAM: 'Upgrade to Team',
-  BUSINESS: 'Go Unlimited',
+  CREW: 'Upgrade to Crew',
+  SQUAD: 'Upgrade to Squad',
+  FLEET: 'Upgrade to Fleet',
+  ENTERPRISE: 'Contact Sales',
 }
 
 // Convert config plans to UI format
@@ -160,95 +166,204 @@ export default function PricingPage() {
           </p>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {getPlansForUI().map((plan) => {
-            const Icon = plan.icon
-            const isLoading = loading === plan.id
+        {/* Pricing Cards - 5 Tier Layout */}
+        {/* Row 1: Solo, Crew, Squad (3 columns) */}
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-8">
+          {getPlansForUI()
+            .filter((plan) => ['SOLO', 'CREW', 'SQUAD'].includes(plan.id))
+            .map((plan) => {
+              const Icon = plan.icon
+              const isLoading = loading === plan.id
 
-            return (
-              <div
-                key={plan.id}
-                className={`relative bg-white rounded-2xl shadow-lg border-2 transition-all hover:shadow-xl ${
-                  plan.highlight
-                    ? 'border-blue-600 scale-105 md:scale-110'
-                    : 'border-gray-200'
-                }`}
-              >
-                {/* Most Popular Badge */}
-                {plan.highlight && plan.label && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                      {plan.label}
-                    </span>
-                  </div>
-                )}
-
-                <div className="p-8">
-                  {/* Icon & Name */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`p-3 rounded-xl ${
-                      plan.highlight ? 'bg-blue-100' : 'bg-gray-100'
-                    }`}>
-                      <Icon className={`h-6 w-6 ${
-                        plan.highlight ? 'text-blue-600' : 'text-gray-600'
-                      }`} />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900">
-                      {plan.name}
-                    </h3>
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-gray-600 mb-6">{plan.description}</p>
-
-                  {/* Price */}
-                  <div className="mb-6">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-gray-900">
-                        ${plan.price}
+              return (
+                <div
+                  key={plan.id}
+                  className={`relative bg-white rounded-2xl shadow-lg border-2 transition-all hover:shadow-xl ${
+                    plan.highlight
+                      ? 'border-blue-600 scale-105 md:scale-110'
+                      : 'border-gray-200'
+                  }`}
+                >
+                  {/* Badge */}
+                  {plan.label && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <span className={`px-4 py-1 rounded-full text-sm font-semibold ${
+                        plan.highlight
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700'
+                      }`}>
+                        {plan.label}
                       </span>
-                      <span className="text-gray-600">/{plan.interval}</span>
                     </div>
+                  )}
+
+                  <div className="p-8">
+                    {/* Icon & Name */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`p-3 rounded-xl ${
+                        plan.highlight ? 'bg-blue-100' : 'bg-gray-100'
+                      }`}>
+                        <Icon className={`h-6 w-6 ${
+                          plan.highlight ? 'text-blue-600' : 'text-gray-600'
+                        }`} />
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        {plan.name}
+                      </h3>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-gray-600 mb-6">{plan.description}</p>
+
+                    {/* Price */}
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-bold text-gray-900">
+                          ${plan.price}
+                        </span>
+                        <span className="text-gray-600">/{plan.interval}</span>
+                      </div>
+                    </div>
+
+                    {/* Features */}
+                    <ul className="space-y-3 mb-8">
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-gray-700">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* CTA Button */}
+                    <Button
+                      onClick={() => handleSubscribe(plan)}
+                      disabled={isLoading || !plan.stripePriceId}
+                      className={`w-full ${
+                        plan.highlight
+                          ? 'bg-blue-600 hover:bg-blue-700'
+                          : ''
+                      }`}
+                      variant={plan.highlight ? 'primary' : 'outline'}
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          {plan.cta}
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
                   </div>
-
-                  {/* Features */}
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-gray-700">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* CTA Button */}
-                  <Button
-                    onClick={() => handleSubscribe(plan)}
-                    disabled={isLoading || !plan.stripePriceId}
-                    className={`w-full ${
-                      plan.highlight
-                        ? 'bg-blue-600 hover:bg-blue-700'
-                        : ''
-                    }`}
-                    variant={plan.highlight ? 'primary' : 'outline'}
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        {plan.cta}
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+        </div>
+
+        {/* Row 2: Fleet, Enterprise (2 columns, centered) */}
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          {getPlansForUI()
+            .filter((plan) => ['FLEET', 'ENTERPRISE'].includes(plan.id))
+            .map((plan) => {
+              const Icon = plan.icon
+              const isLoading = loading === plan.id
+
+              return (
+                <div
+                  key={plan.id}
+                  className={`relative bg-white rounded-2xl shadow-lg border-2 transition-all hover:shadow-xl ${
+                    plan.highlight
+                      ? 'border-blue-600 scale-105 md:scale-110'
+                      : 'border-gray-200'
+                  }`}
+                >
+                  {/* Badge */}
+                  {plan.label && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <span className={`px-4 py-1 rounded-full text-sm font-semibold ${
+                        plan.highlight
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700'
+                      }`}>
+                        {plan.label}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="p-8">
+                    {/* Icon & Name */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`p-3 rounded-xl ${
+                        plan.highlight ? 'bg-blue-100' : 'bg-gray-100'
+                      }`}>
+                        <Icon className={`h-6 w-6 ${
+                          plan.highlight ? 'text-blue-600' : 'text-gray-600'
+                        }`} />
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        {plan.name}
+                      </h3>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-gray-600 mb-6">{plan.description}</p>
+
+                    {/* Price */}
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-bold text-gray-900">
+                          ${plan.price}
+                        </span>
+                        <span className="text-gray-600">/{plan.interval}</span>
+                      </div>
+                    </div>
+
+                    {/* Features */}
+                    <ul className="space-y-3 mb-8">
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-gray-700">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* CTA Button */}
+                    <Button
+                      onClick={() => handleSubscribe(plan)}
+                      disabled={isLoading || !plan.stripePriceId || plan.id === 'ENTERPRISE'}
+                      className={`w-full ${
+                        plan.highlight
+                          ? 'bg-blue-600 hover:bg-blue-700'
+                          : ''
+                      }`}
+                      variant={plan.highlight ? 'primary' : 'outline'}
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Processing...
+                        </>
+                      ) : plan.id === 'ENTERPRISE' ? (
+                        <>
+                          Contact Sales
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
+                      ) : (
+                        <>
+                          {plan.cta}
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
         </div>
 
         {/* FAQ or Additional Info */}

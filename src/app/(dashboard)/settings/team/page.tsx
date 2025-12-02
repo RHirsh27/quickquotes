@@ -45,6 +45,31 @@ function TeamManagementContent() {
   const [canAddMember, setCanAddMember] = useState<{ allowed: boolean; reason?: string; currentCount: number; maxUsers: number } | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
+  // Redirect members to profile
+  useEffect(() => {
+    async function checkAccess() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: teamId } = await supabase.rpc('get_user_primary_team')
+      if (!teamId) return
+
+      const { data: teamMember } = await supabase
+        .from('team_members')
+        .select('role')
+        .eq('team_id', teamId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (teamMember && teamMember.role === 'member') {
+        // Redirect members to profile
+        window.location.href = '/profile'
+        return
+      }
+    }
+    checkAccess()
+  }, [supabase])
+
   // Fetch team data
   useEffect(() => {
     async function fetchTeamData() {

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Save, Building2 } from 'lucide-react'
 import { sanitizeString, sanitizePhone, sanitizeEmail } from '@/lib/utils/sanitize'
 import { isValidEmail, isValidPhone } from '@/lib/utils/validation'
+import SupportWidget from '@/components/SupportWidget'
 
 export default function ProfilePage() {
   const supabase = createClient()
@@ -207,6 +208,17 @@ export default function ProfilePage() {
                 Save Changes
               </LoadingButton>
         </form>
+      </div>
+
+      {/* Support Section */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-gray-900 mb-1">Need Help?</h2>
+            <p className="text-sm text-gray-500">Get support for your account</p>
+          </div>
+          <SupportWidget variant="button" />
+        </div>
       </div>
     </div>
   )

@@ -58,9 +58,12 @@ export default async function Dashboard() {
 
   // Fetch user profile from users table (handle errors gracefully)
   let companyName = 'User'
+  let userRole: 'owner' | 'member' | null = null
   let totalQuotes = 0
   let activeQuotes = 0
   let totalRevenue = 0
+  let myQuotes = 0 // For members: quotes created by this user only
+  let myActiveQuotes = 0 // For members: active quotes created by this user only
   let recentQuotes: any[] = []
 
   try {
@@ -93,7 +96,7 @@ export default async function Dashboard() {
       })
     }
 
-    // Get user's primary team
+    // Get user's primary team and role
     let teamId: string | null = null
     try {
       // Call the RPC function to get primary team
@@ -112,9 +115,8 @@ export default async function Dashboard() {
         try {
           const { data: teamMemberData, error: teamMemberError } = await supabase
             .from('team_members')
-            .select('team_id')
+            .select('team_id, role')
             .eq('user_id', user.id)
-            .eq('role', 'owner')
             .limit(1)
             .single()
           
@@ -122,7 +124,8 @@ export default async function Dashboard() {
             console.error('[Dashboard] Error fetching team member (fallback):', teamMemberError)
           } else if (teamMemberData) {
             teamId = teamMemberData.team_id
-            console.log('[Dashboard] Found team via fallback method:', teamId)
+            userRole = teamMemberData.role as 'owner' | 'member'
+            console.log('[Dashboard] Found team via fallback method:', teamId, 'Role:', userRole)
           }
         } catch (fallbackError) {
           console.error('[Dashboard] Exception in team member fallback:', fallbackError)
@@ -130,6 +133,19 @@ export default async function Dashboard() {
       } else if (primaryTeamId) {
         teamId = primaryTeamId
         console.log('[Dashboard] Found primary team via RPC:', teamId)
+        
+        // Fetch user's role
+        const { data: teamMember, error: roleError } = await supabase
+          .from('team_members')
+          .select('role')
+          .eq('team_id', primaryTeamId)
+          .eq('user_id', user.id)
+          .single()
+        
+        if (!roleError && teamMember) {
+          userRole = teamMember.role as 'owner' | 'member'
+          console.log('[Dashboard] User role:', userRole)
+        }
       } else {
         console.warn('[Dashboard] No primary team found for user:', user.id)
       }
@@ -141,48 +157,69 @@ export default async function Dashboard() {
       })
     }
 
-    // Fetch stats - use team_id if available, otherwise fallback to user_id
+    // Fetch stats - different logic for owners vs members
     try {
-      const quotesQuery = supabase
-        .from('quotes')
-        .select('id, status, total, created_at, quote_number, customers(name)')
-        .order('created_at', { ascending: false })
-      
-      if (teamId) {
-        quotesQuery.eq('team_id', teamId)
-      } else {
-        // Fallback to user_id if no team found
-        quotesQuery.eq('user_id', user.id)
-      }
-      
-      const { data: quotesData, error: quotesError } = await quotesQuery
+      if (userRole === 'member') {
+        // Members: Only show their own quotes
+        const { data: quotesData, error: quotesError } = await supabase
+          .from('quotes')
+          .select('id, status, total, created_at, quote_number, customers(name)')
+          .eq('user_id', user.id) // Only quotes created by this user
+          .order('created_at', { ascending: false })
 
-      if (quotesError) {
-        console.error('[Dashboard] Error fetching quotes:', quotesError)
-        console.error('[Dashboard] Quotes error details:', {
-          message: quotesError.message,
-          code: quotesError.code,
-          details: quotesError.details,
-          hint: quotesError.hint,
-        })
-      } else if (quotesData) {
-        totalQuotes = quotesData.length
-        activeQuotes = quotesData.filter(q => q.status === 'sent' || q.status === 'draft').length
-        totalRevenue = quotesData
-          .filter(q => q.status === 'accepted')
-          .reduce((sum, q) => sum + (Number(q.total) || 0), 0)
-        recentQuotes = quotesData.slice(0, 5).map(q => ({
-          ...q,
-          total: Number(q.total) || 0,
-        }))
-        console.log('[Dashboard] Successfully fetched quotes:', {
-          total: totalQuotes,
-          active: activeQuotes,
-          revenue: totalRevenue,
-          recent: recentQuotes.length,
-        })
+        if (quotesError) {
+          console.error('[Dashboard] Error fetching member quotes:', quotesError)
+        } else if (quotesData) {
+          myQuotes = quotesData.length
+          myActiveQuotes = quotesData.filter(q => q.status === 'sent' || q.status === 'draft').length
+          recentQuotes = quotesData.slice(0, 5).map(q => ({
+            ...q,
+            total: Number(q.total) || 0,
+          }))
+        }
       } else {
-        console.warn('[Dashboard] No quotes data returned (null or undefined)')
+        // Owners: Show team-wide stats
+        const quotesQuery = supabase
+          .from('quotes')
+          .select('id, status, total, created_at, quote_number, customers(name)')
+          .order('created_at', { ascending: false })
+        
+        if (teamId) {
+          quotesQuery.eq('team_id', teamId)
+        } else {
+          // Fallback to user_id if no team found
+          quotesQuery.eq('user_id', user.id)
+        }
+        
+        const { data: quotesData, error: quotesError } = await quotesQuery
+
+        if (quotesError) {
+          console.error('[Dashboard] Error fetching quotes:', quotesError)
+          console.error('[Dashboard] Quotes error details:', {
+            message: quotesError.message,
+            code: quotesError.code,
+            details: quotesError.details,
+            hint: quotesError.hint,
+          })
+        } else if (quotesData) {
+          totalQuotes = quotesData.length
+          activeQuotes = quotesData.filter(q => q.status === 'sent' || q.status === 'draft').length
+          totalRevenue = quotesData
+            .filter(q => q.status === 'accepted')
+            .reduce((sum, q) => sum + (Number(q.total) || 0), 0)
+          recentQuotes = quotesData.slice(0, 5).map(q => ({
+            ...q,
+            total: Number(q.total) || 0,
+          }))
+          console.log('[Dashboard] Successfully fetched quotes:', {
+            total: totalQuotes,
+            active: activeQuotes,
+            revenue: totalRevenue,
+            recent: recentQuotes.length,
+          })
+        } else {
+          console.warn('[Dashboard] No quotes data returned (null or undefined)')
+        }
       }
     } catch (error) {
       console.error('[Dashboard] Exception fetching quotes:', error)
@@ -223,20 +260,35 @@ export default async function Dashboard() {
       </div>
 
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-          <p className="text-sm text-gray-500 mb-2">Total Quotes</p>
-          <p className="text-3xl font-bold text-gray-900">{totalQuotes}</p>
+      {userRole === 'member' ? (
+        // Member view: My Performance
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+            <p className="text-sm text-gray-500 mb-2">My Quotes</p>
+            <p className="text-3xl font-bold text-gray-900">{myQuotes}</p>
+          </div>
+          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+            <p className="text-sm text-gray-500 mb-2">My Active Quotes</p>
+            <p className="text-3xl font-bold text-gray-900">{myActiveQuotes}</p>
+          </div>
         </div>
-        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-          <p className="text-sm text-gray-500 mb-2">Active Quotes</p>
-          <p className="text-3xl font-bold text-gray-900">{activeQuotes}</p>
+      ) : (
+        // Owner view: Team Totals
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+            <p className="text-sm text-gray-500 mb-2">Total Quotes</p>
+            <p className="text-3xl font-bold text-gray-900">{totalQuotes}</p>
+          </div>
+          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+            <p className="text-sm text-gray-500 mb-2">Active Quotes</p>
+            <p className="text-3xl font-bold text-gray-900">{activeQuotes}</p>
+          </div>
+          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+            <p className="text-sm text-gray-500 mb-2">Total Revenue</p>
+            <p className="text-3xl font-bold text-green-600">${totalRevenue.toFixed(2)}</p>
+          </div>
         </div>
-        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-          <p className="text-sm text-gray-500 mb-2">Total Revenue</p>
-          <p className="text-3xl font-bold text-green-600">${totalRevenue.toFixed(2)}</p>
-        </div>
-      </div>
+      )}
 
       {/* Recent Quotes */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">

@@ -16,6 +16,31 @@ function PaymentsSettingsContent() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
+  // Redirect members to profile (owners only)
+  useEffect(() => {
+    async function checkAccess() {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) return
+
+      const { data: teamId } = await supabase.rpc('get_user_primary_team')
+      if (!teamId) return
+
+      const { data: teamMember } = await supabase
+        .from('team_members')
+        .select('role')
+        .eq('team_id', teamId)
+        .eq('user_id', authUser.id)
+        .single()
+
+      if (teamMember && teamMember.role === 'member') {
+        // Redirect members to profile
+        router.push('/profile')
+        return
+      }
+    }
+    checkAccess()
+  }, [supabase, router])
+
   // Check for success/refresh params from Stripe redirect
   useEffect(() => {
     const success = searchParams.get('success')

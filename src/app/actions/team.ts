@@ -2,7 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { canAddTeamMember } from '@/lib/subscriptions'
+import { canAddTeamMember, getUserSubscription } from '@/lib/subscriptions'
+import { updateSubscriptionSeats } from '@/lib/stripe'
+import { getPlanByStripePriceId } from '@/config/pricing'
 
 export interface InviteMemberResult {
   success: boolean
@@ -115,6 +117,28 @@ export async function inviteTeamMember(email: string): Promise<InviteMemberResul
       }
     }
 
+    // Update Stripe subscription seats if Enterprise plan
+    try {
+      const subscription = await getUserSubscription(user.id)
+      if (subscription?.stripe_subscription_id) {
+        const plan = getPlanByStripePriceId(subscription.plan_id || '')
+        if (plan?.id === 'ENTERPRISE') {
+          // Count total team members
+          const { count: memberCount } = await supabase
+            .from('team_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('team_id', primaryTeamId)
+
+          if (memberCount !== null) {
+            await updateSubscriptionSeats(subscription.stripe_subscription_id, memberCount)
+          }
+        }
+      }
+    } catch (error) {
+      // Log error but don't fail the invite - seat update can be retried
+      console.error('[Team Action] Error updating subscription seats:', error)
+    }
+
     revalidatePath('/settings/team')
     return {
       success: true,
@@ -224,6 +248,28 @@ export async function removeTeamMember(memberId: string, memberUserId: string): 
         success: false,
         message: deleteError.message || 'Failed to remove member.'
       }
+    }
+
+    // Update Stripe subscription seats if Enterprise plan
+    try {
+      const subscription = await getUserSubscription(user.id)
+      if (subscription?.stripe_subscription_id) {
+        const plan = getPlanByStripePriceId(subscription.plan_id || '')
+        if (plan?.id === 'ENTERPRISE') {
+          // Count total team members after removal
+          const { count: memberCount } = await supabase
+            .from('team_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('team_id', primaryTeamId)
+
+          if (memberCount !== null) {
+            await updateSubscriptionSeats(subscription.stripe_subscription_id, memberCount)
+          }
+        }
+      }
+    } catch (error) {
+      // Log error but don't fail the removal - seat update can be retried
+      console.error('[Team Action] Error updating subscription seats:', error)
     }
 
     revalidatePath('/settings/team')
