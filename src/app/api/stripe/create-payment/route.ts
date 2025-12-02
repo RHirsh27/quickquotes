@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
-
-// Application fee percentage (1%)
-const APP_FEE_PERCENT = 0.01
+import { APPLICATION_FEE_PERCENT } from '@/config/pricing'
 
 /**
  * POST /api/stripe/create-payment
@@ -68,8 +66,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Calculate application fee (1% of amount)
-    const applicationFeeAmount = Math.round(amount * APP_FEE_PERCENT)
+    // Calculate application fee using centralized constant
+    const applicationFeeAmount = Math.round(amount * APPLICATION_FEE_PERCENT)
 
     // Create Stripe Checkout Session
     const stripe = getStripe()

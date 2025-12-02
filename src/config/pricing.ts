@@ -21,6 +21,8 @@ export interface PricingPlan {
 
 export const EXTRA_SEAT_PRICE_ID = ""; // I will fill this in
 
+export const APPLICATION_FEE_PERCENT = 0.01; // 1%
+
 export const PRICING_PLANS: Record<PlanId, PricingPlan> = {
   SOLO: {
     id: 'SOLO',

@@ -64,18 +64,22 @@ async function updateInvoicePayment(
   supabase: Awaited<ReturnType<typeof createClient>>,
   session: Stripe.Checkout.Session
 ) {
-  const invoiceId = session.invoice as string
+  // Get invoice ID from metadata (set in create-payment route)
+  const invoiceId = session.metadata?.invoiceId
 
   if (!invoiceId) {
-    console.error('[Webhook] No invoice ID in checkout session')
-    throw new Error('No invoice ID in checkout session')
+    console.error('[Webhook] No invoiceId in checkout session metadata')
+    throw new Error('No invoiceId in checkout session metadata')
   }
 
-  // Update invoice status to 'paid'
+  // Update invoice status to 'paid' and set paid_at timestamp
   const { error: updateError } = await supabase
     .from('invoices')
-    .update({ status: 'paid' })
-    .eq('stripe_invoice_id', invoiceId)
+    .update({ 
+      status: 'paid',
+      paid_at: new Date().toISOString()
+    })
+    .eq('id', invoiceId)
 
   if (updateError) {
     console.error('[Webhook] Error updating invoice status:', updateError)
