@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
+import { sendPaymentReceivedEmail, sendInvoiceReceiptEmail } from '@/lib/emails'
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
@@ -58,7 +59,7 @@ async function activateSubscription(
 }
 
 /**
- * Update invoice status to 'paid' in the invoices table
+ * Update invoice status to 'paid' in the invoices table and send emails
  */
 async function updateInvoicePayment(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -72,12 +73,33 @@ async function updateInvoicePayment(
     throw new Error('No invoiceId in checkout session metadata')
   }
 
-  // Update invoice status to 'paid' and set paid_at timestamp
+  // Fetch invoice details with related data
+  const { data: invoice, error: invoiceError } = await supabase
+    .from('invoices')
+    .select(`
+      *,
+      customers:customer_id (name, email),
+      teams:team_id (name, company_email, company_phone),
+      users:user_id (email, company_name, full_name)
+    `)
+    .eq('id', invoiceId)
+    .single()
+
+  if (invoiceError || !invoice) {
+    console.error('[Webhook] Error fetching invoice:', invoiceError)
+    throw invoiceError || new Error('Invoice not found')
+  }
+
+  // Get payment amount from session (in cents)
+  const amountPaid = session.amount_total || invoice.total ? Math.round((invoice.total || 0) * 100) : 0
+
+  // Update invoice status to 'paid' and set paid_at timestamp and amount_paid
   const { error: updateError } = await supabase
     .from('invoices')
     .update({ 
       status: 'paid',
-      paid_at: new Date().toISOString()
+      paid_at: new Date().toISOString(),
+      amount_paid: amountPaid / 100, // Convert cents to dollars for storage
     })
     .eq('id', invoiceId)
 
@@ -87,6 +109,50 @@ async function updateInvoicePayment(
   }
 
   console.log(`[Webhook] Invoice ${invoiceId} marked as paid`)
+
+  // Send emails (non-blocking - don't fail webhook if email fails)
+  try {
+    // Get team owner email (user who created the invoice)
+    const invoiceUser = invoice.users as any
+    const teamOwnerEmail = invoiceUser?.email
+
+    // Get customer email
+    const customer = invoice.customers as any
+    const customerEmail = invoice.customer_email || customer?.email
+
+    // Get company info
+    const team = invoice.teams as any
+    const companyName = team?.name || invoiceUser?.company_name || invoiceUser?.full_name || 'Quotd'
+    const companyEmail = team?.company_email || invoiceUser?.email
+    const companyPhone = team?.company_phone
+
+    // Send payment received email to team owner
+    if (teamOwnerEmail && amountPaid > 0) {
+      await sendPaymentReceivedEmail({
+        to: teamOwnerEmail,
+        amount: amountPaid,
+        invoiceNumber: invoice.invoice_number || invoiceId.slice(0, 8),
+        customerName: customer?.name || invoice.customer_name || 'Customer',
+        companyName,
+      })
+    }
+
+    // Send receipt email to customer
+    if (customerEmail && amountPaid > 0) {
+      await sendInvoiceReceiptEmail({
+        to: customerEmail,
+        invoiceNumber: invoice.invoice_number || invoiceId.slice(0, 8),
+        amount: amountPaid,
+        companyName,
+        companyEmail,
+        companyPhone,
+        paymentDate: new Date().toISOString(),
+      })
+    }
+  } catch (emailError: any) {
+    // Log email errors but don't fail the webhook
+    console.error('[Webhook] Error sending emails:', emailError)
+  }
 }
 
 export async function POST(req: NextRequest) {

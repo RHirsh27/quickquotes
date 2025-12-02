@@ -12,6 +12,7 @@ import {
   Clock,
   ArrowUpRight
 } from 'lucide-react'
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
 
 // Mark this route as dynamic since it uses cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -68,6 +69,7 @@ export default async function Dashboard() {
   // Initialize defaults - all values start at safe defaults
   let companyName = 'My Company'
   let userRole: 'owner' | 'member' | null = null
+  let teamId: string | null = null // Declare teamId at function scope
   let totalQuotes = 0
   let activeQuotes = 0
   let totalRevenue = 0
@@ -115,7 +117,6 @@ export default async function Dashboard() {
     }
 
     // Get user's primary team and role - handle missing team gracefully
-    let teamId: string | null = null
     try {
       // Try RPC function first (if it exists)
       try {
@@ -331,6 +332,13 @@ export default async function Dashboard() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
+      {/* Onboarding Checklist */}
+      <OnboardingChecklist 
+        userId={user.id} 
+        teamId={teamId || null}
+        userRole={userRole}
+      />
+
       {/* Header Section */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>

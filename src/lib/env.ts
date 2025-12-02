@@ -26,7 +26,28 @@ const envSchema = z.object({
   
   // App URL - optional (defaults to localhost in development)
   // Accept valid URL string or undefined (empty strings are preprocessed to undefined)
-  NEXT_PUBLIC_APP_URL: z.string().url("NEXT_PUBLIC_APP_URL must be a valid URL").optional(),
+  // Use preprocess to convert empty/invalid strings to undefined before validation
+  NEXT_PUBLIC_APP_URL: z.preprocess(
+    (val) => {
+      if (!val || typeof val !== 'string') return undefined
+      const trimmed = val.trim()
+      if (trimmed === '') return undefined
+      // Try to validate URL, return undefined if invalid
+      try {
+        new URL(trimmed)
+        return trimmed
+      } catch {
+        return undefined
+      }
+    },
+    z.string().url().optional()
+  ),
+  
+  // Resend API Key - optional (only required when using email features)
+  RESEND_API_KEY: z.string().optional(),
+  
+  // Admin Email - optional (for feedback/support emails)
+  ADMIN_EMAIL: z.string().email("ADMIN_EMAIL must be a valid email").optional(),
 });
 
 /**
@@ -52,14 +73,13 @@ function validateEnv() {
       NEXT_PUBLIC_STRIPE_PRICE_TEAM: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM || undefined,
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || undefined,
       NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || undefined,
+      RESEND_API_KEY: process.env.RESEND_API_KEY || undefined,
+      ADMIN_EMAIL: process.env.ADMIN_EMAIL || undefined,
     } as z.infer<typeof envSchema>;
   }
 
   // Validate at runtime - Stripe vars are optional
-  // Preprocess NEXT_PUBLIC_APP_URL: convert empty string to undefined
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  const processedAppUrl = appUrl === "" ? undefined : appUrl;
-  
+  // NEXT_PUBLIC_APP_URL preprocessing is handled by Zod schema
   return envSchema.parse({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -69,7 +89,9 @@ function validateEnv() {
     NEXT_PUBLIC_STRIPE_PRICE_CREW: process.env.NEXT_PUBLIC_STRIPE_PRICE_CREW,
     NEXT_PUBLIC_STRIPE_PRICE_TEAM: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-    NEXT_PUBLIC_APP_URL: processedAppUrl,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL,
   });
 }
 
@@ -91,7 +113,20 @@ try {
     NEXT_PUBLIC_STRIPE_PRICE_CREW: process.env.NEXT_PUBLIC_STRIPE_PRICE_CREW || undefined,
     NEXT_PUBLIC_STRIPE_PRICE_TEAM: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM || undefined,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || undefined,
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL?.trim() === '' ? undefined : process.env.NEXT_PUBLIC_APP_URL || undefined,
+    NEXT_PUBLIC_APP_URL: (() => {
+      const val = process.env.NEXT_PUBLIC_APP_URL
+      if (!val || typeof val !== 'string') return undefined
+      const trimmed = val.trim()
+      if (trimmed === '') return undefined
+      try {
+        new URL(trimmed)
+        return trimmed
+      } catch {
+        return undefined
+      }
+    })(),
+    RESEND_API_KEY: process.env.RESEND_API_KEY || undefined,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL || undefined,
   } as z.infer<typeof envSchema>
 }
 
