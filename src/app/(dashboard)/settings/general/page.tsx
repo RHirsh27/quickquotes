@@ -135,14 +135,14 @@ function GeneralSettingsContent() {
     }
 
     try {
-      // Sanitize inputs
+      // Sanitize inputs (convert null to undefined for TypeScript compatibility)
       const sanitizedData = {
         default_tax_rate: formData.default_tax_rate,
-        company_address: sanitizeString(formData.company_address) || null,
-        company_phone: formData.company_phone ? sanitizePhone(formData.company_phone) : null,
-        company_email: formData.company_email ? sanitizeEmail(formData.company_email) : null,
-        company_website: sanitizeString(formData.company_website) || null,
-        default_quote_notes: sanitizeString(formData.default_quote_notes) || null,
+        company_address: sanitizeString(formData.company_address) || undefined,
+        company_phone: formData.company_phone ? sanitizePhone(formData.company_phone) : undefined,
+        company_email: formData.company_email ? sanitizeEmail(formData.company_email) : undefined,
+        company_website: sanitizeString(formData.company_website) || undefined,
+        default_quote_notes: sanitizeString(formData.default_quote_notes) || undefined,
       }
 
       const result = await updateGeneralSettings(sanitizedData)

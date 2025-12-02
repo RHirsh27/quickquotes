@@ -57,6 +57,7 @@ export async function updateGeneralSettings(data: {
     }
 
     // Prepare update data (only include provided fields)
+    // Convert undefined to null for database (Supabase expects null for empty values)
     const updateData: any = {}
     if (data.default_tax_rate !== undefined) {
       updateData.default_tax_rate = data.default_tax_rate >= 0 ? data.default_tax_rate : 0
