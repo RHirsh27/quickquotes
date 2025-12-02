@@ -25,7 +25,11 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   
   // App URL - optional (defaults to localhost in development)
-  NEXT_PUBLIC_APP_URL: z.union([z.string().url("NEXT_PUBLIC_APP_URL must be a valid URL"), z.literal("")]).optional(),
+  // Preprocess empty strings to undefined, then validate as URL or undefined
+  NEXT_PUBLIC_APP_URL: z.preprocess(
+    (val) => (val === "" || val === undefined ? undefined : val),
+    z.string().url("NEXT_PUBLIC_APP_URL must be a valid URL").optional()
+  ),
 });
 
 /**
