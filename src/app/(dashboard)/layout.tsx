@@ -39,18 +39,26 @@ export default async function DashboardLayout({
       // Continue without role - will default to showing all items
     }
 
-    // SUBSCRIPTION & TRIAL CHECK: Check if user has access (paid subscription OR active trial)
-    // For team members, check if owner has access
+    // STRICT PAYWALL: Check subscription status for ALL users (owners and members)
+    // Only owners can have subscriptions, but members need to be on a team with an active subscription
     try {
-      let hasAccess = false
-      let subscriptionStatus = null
+      let hasActiveSubscription = false
 
       if (userRole === 'owner') {
-        // For owners: Check their own subscription/trial
-        subscriptionStatus = await getSubscriptionStatus(user.id)
-        hasAccess = subscriptionStatus.hasAccess
+        // For owners: Check their own subscription
+        const { data: subscription, error: subError } = await supabase
+          .from('subscriptions')
+          .select('status')
+          .eq('user_id', user.id)
+          .in('status', ['active', 'trialing'])
+          .limit(1)
+          .maybeSingle()
+
+        if (!subError && subscription) {
+          hasActiveSubscription = true
+        }
       } else if (userRole === 'member') {
-        // For members: Check if their team owner has an active subscription/trial
+        // For members: Check if their team owner has an active subscription
         const { data: teamMember, error: tmError } = await supabase
           .from('team_members')
           .select('team_id')
@@ -69,26 +77,49 @@ export default async function DashboardLayout({
             .maybeSingle()
 
           if (!ownerError && owner) {
-            // Check owner's subscription/trial
-            subscriptionStatus = await getSubscriptionStatus(owner.user_id)
-            hasAccess = subscriptionStatus.hasAccess
+            // Check owner's subscription
+            const { data: subscription, error: subError } = await supabase
+              .from('subscriptions')
+              .select('status')
+              .eq('user_id', owner.user_id)
+              .in('status', ['active', 'trialing'])
+              .limit(1)
+              .maybeSingle()
+
+            if (!subError && subscription) {
+              hasActiveSubscription = true
+            }
           }
         }
       } else {
-        // No role assigned - check if user has a subscription/trial
-        subscriptionStatus = await getSubscriptionStatus(user.id)
-        hasAccess = subscriptionStatus.hasAccess
+        // No role assigned - check if user has a subscription (might be a new user)
+        const { data: subscription, error: subError } = await supabase
+          .from('subscriptions')
+          .select('status')
+          .eq('user_id', user.id)
+          .in('status', ['active', 'trialing'])
+          .limit(1)
+          .maybeSingle()
+
+        if (!subError && subscription) {
+          hasActiveSubscription = true
+        }
       }
 
-      // If no access (no active subscription or trial), redirect to finish-setup
-      if (!hasAccess) {
+      // If no active subscription found, redirect to finish-setup
+      // Exception: Don't redirect if already on /finish-setup (but finish-setup is outside this layout)
+      if (!hasActiveSubscription) {
+        console.log('[Dashboard Layout] No active subscription found, redirecting to finish-setup')
         redirect('/finish-setup')
       }
     } catch (error) {
-      console.error('[Dashboard Layout] Error checking subscription/trial:', error)
-      // On error, redirect to finish-setup to be safe
+      console.error('[Dashboard Layout] Error checking subscription:', error)
+      // On error, redirect to finish-setup to be safe (strict paywall)
       redirect('/finish-setup')
     }
+
+    // Get subscription status for TrialBanner display
+    const subscriptionStatus = await getSubscriptionStatus(user.id)
 
     return (
       <DashboardWrapper>

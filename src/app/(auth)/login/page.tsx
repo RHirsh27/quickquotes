@@ -175,7 +175,16 @@ function AuthPageContent() {
           })
           if (error) throw error
 
-          // If plan is selected and user is created, trigger Stripe checkout
+          // Check if email confirmation is required
+          // If user is null, it means email confirmation was sent
+          if (!signUpData?.user) {
+            console.log('[Signup] Email confirmation required - redirecting to verify-email')
+            toast.success('Please check your email to confirm your account.')
+            router.push('/verify-email')
+            return
+          }
+
+          // If plan is selected and user is created (email confirmation disabled), trigger Stripe checkout
           if (selectedPlan && selectedPlan.stripePriceId && signUpData?.user) {
             try {
               // Wait a moment for the user session to be established
