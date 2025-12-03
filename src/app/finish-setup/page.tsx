@@ -50,15 +50,39 @@ export default function FinishSetupPage() {
     setLoadingPriceId(priceId)
 
     try {
-      // Verify session before making request
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError || !session) {
-        console.error('[Finish Setup] Session check failed:', sessionError?.message)
+      // Verify and refresh session before making request
+      // First, try to get the user (this refreshes the session)
+      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
+      if (userError || !currentUser) {
+        console.error('[Finish Setup] User check failed:', userError?.message)
         alert('Your session has expired. Please sign in again.')
         router.push('/login')
         setLoadingPriceId(null)
         return
       }
+      
+      // Then get the session to ensure it's valid
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) {
+        console.error('[Finish Setup] Session check failed:', sessionError?.message)
+        console.log('[Finish Setup] Attempting to refresh session...')
+        
+        // Wait a moment for cookies to be set, then try again
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        const { data: { session: retrySession } } = await supabase.auth.getSession()
+        if (!retrySession) {
+          alert('Please wait a moment and try again. Your session is being established...')
+          setLoadingPriceId(null)
+          return
+        }
+      }
+      
+      console.log('[Finish Setup] Session verified, proceeding with checkout:', {
+        userId: currentUser.id,
+        hasSession: !!session,
+        accessToken: session?.access_token ? 'present' : 'missing'
+      })
 
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',

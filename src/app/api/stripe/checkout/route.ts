@@ -7,21 +7,38 @@ export async function POST(request: NextRequest) {
   try {
     // Get authenticated user (using API route client)
     const supabase = createClient(request)
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    // Try to get user - this will refresh the session if needed
+    let { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    // If getUser fails, try getSession as fallback
+    if (userError || !user) {
+      console.warn('[Checkout] getUser failed, trying getSession:', userError?.message)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (session?.user) {
+        user = session.user
+        userError = null
+        console.log('[Checkout] Recovered user from session')
+      }
+    }
 
     // Debug logging
+    const allCookies = request.cookies.getAll()
     console.log('[Checkout] Auth check:', {
       hasUser: !!user,
       userId: user?.id,
       error: userError?.message,
-      cookies: request.cookies.getAll().map(c => c.name)
+      cookieNames: allCookies.map(c => c.name),
+      cookieCount: allCookies.length,
+      hasAuthToken: allCookies.some(c => c.name.includes('auth-token')),
+      hasCodeVerifier: allCookies.some(c => c.name.includes('code-verifier'))
     })
 
     if (userError || !user) {
       console.error('[Checkout] Unauthorized:', {
         error: userError?.message || 'No user found',
-        cookies: request.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value })),
-        cookieCount: request.cookies.getAll().length
+        cookies: allCookies.map(c => ({ name: c.name, hasValue: !!c.value, valueLength: c.value?.length || 0 })),
+        cookieCount: allCookies.length
       })
       return NextResponse.json(
         { error: 'Your session has expired. Please refresh the page and try again, or sign out and sign in again.' },
