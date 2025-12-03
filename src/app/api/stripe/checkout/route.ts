@@ -71,14 +71,12 @@ export async function POST(request: NextRequest) {
       console.warn('[Checkout] No team found for user:', user.id)
     }
 
-    // Check if user already has a Stripe customer ID
+    // Check if user already has a subscription (might be a trial)
     let customerId: string | null = null
     const { data: existingSubscription } = await supabase
       .from('subscriptions')
-      .select('stripe_customer_id')
+      .select('*')
       .eq('user_id', user.id)
-      .not('stripe_customer_id', 'is', null)
-      .limit(1)
       .single()
 
     if (existingSubscription?.stripe_customer_id) {
@@ -97,21 +95,38 @@ export async function POST(request: NextRequest) {
       customerId = customer.id
       console.log('[Checkout] Created new customer:', customerId)
 
-      // Store customer ID in database
-      const { error: upsertError } = await supabase
-        .from('subscriptions')
-        .upsert({
-          user_id: user.id,
-          stripe_customer_id: customerId,
-          status: 'incomplete',
-        }, {
-          onConflict: 'user_id', // Conflict on user_id to update existing row
-          ignoreDuplicates: false // Ensure update happens
-        })
+      // Update existing subscription with customer ID (preserves trial status and other fields)
+      // OR insert new subscription if none exists
+      if (existingSubscription) {
+        // User has a trial subscription - just add the customer ID
+        const { error: updateError } = await supabase
+          .from('subscriptions')
+          .update({ stripe_customer_id: customerId })
+          .eq('user_id', user.id)
 
-      if (upsertError) {
-        console.error('[Checkout] Error upserting subscription with customer ID:', upsertError)
-        throw new Error('Failed to save Stripe customer ID.')
+        if (updateError) {
+          console.error('[Checkout] Error saving customer ID to trial subscription:', updateError)
+          throw new Error('Failed to save Stripe customer ID.')
+        }
+
+        console.log('[Checkout] Added customer ID to existing trial subscription')
+      } else {
+        // No subscription exists - create one (shouldn't happen with trial flow, but handle it)
+        const { error: insertError } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: user.id,
+            stripe_customer_id: customerId,
+            status: 'incomplete',
+            is_trial: false,
+          })
+
+        if (insertError) {
+          console.error('[Checkout] Error inserting subscription:', insertError)
+          throw new Error('Failed to save Stripe customer ID.')
+        }
+
+        console.log('[Checkout] Created new subscription record')
       }
     }
 
