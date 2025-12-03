@@ -18,9 +18,13 @@ export async function POST(request: NextRequest) {
     })
 
     if (userError || !user) {
-      console.error('[Checkout] Unauthorized:', userError?.message || 'No user found')
+      console.error('[Checkout] Unauthorized:', {
+        error: userError?.message || 'No user found',
+        cookies: request.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value })),
+        cookieCount: request.cookies.getAll().length
+      })
       return NextResponse.json(
-        { error: 'Unauthorized - Please sign out and sign in again' },
+        { error: 'Your session has expired. Please refresh the page and try again, or sign out and sign in again.' },
         { status: 401 }
       )
     }

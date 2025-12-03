@@ -11,6 +11,22 @@ export default function FinishSetupPage() {
   const router = useRouter()
   const supabase = createClient()
   const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+
+  // Verify authentication on mount
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { user }, error } = await supabase.auth.getUser()
+      if (error || !user) {
+        console.error('[Finish Setup] Auth check failed:', error?.message || 'No user')
+        router.push('/login')
+        return
+      }
+      setIsAuthenticated(true)
+      console.log('[Finish Setup] User authenticated:', user.id)
+    }
+    checkAuth()
+  }, [supabase, router])
 
   // Debugging helper: Log plans to ensure config is loaded
   useEffect(() => {
@@ -18,6 +34,12 @@ export default function FinishSetupPage() {
   }, [])
 
   const handleCheckout = async (priceId: string) => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      alert('Please wait while we verify your session...')
+      return
+    }
+
     // Validation: Check if priceId is empty or missing
     if (!priceId || priceId.trim() === '') {
       alert('Configuration Error: Missing Stripe Price ID. Please contact support.')
@@ -28,6 +50,16 @@ export default function FinishSetupPage() {
     setLoadingPriceId(priceId)
 
     try {
+      // Verify session before making request
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) {
+        console.error('[Finish Setup] Session check failed:', sessionError?.message)
+        alert('Your session has expired. Please sign in again.')
+        router.push('/login')
+        setLoadingPriceId(null)
+        return
+      }
+
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: {
@@ -65,6 +97,18 @@ export default function FinishSetupPage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  // Show loading state while checking auth
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">Verifying your session...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
