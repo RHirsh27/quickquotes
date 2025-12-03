@@ -23,6 +23,8 @@ export interface Team {
   company_email: string | null // Company email address
   company_website: string | null // Company website URL
   default_quote_notes: string | null // Default terms & conditions text
+  default_warranty_text: string | null // Standard warranty text for quotes/invoices
+  default_disclosure_text: string | null // Legal disclosures for quotes/invoices
   created_at: string
 }
 
