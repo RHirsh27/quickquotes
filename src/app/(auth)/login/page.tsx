@@ -184,46 +184,9 @@ function AuthPageContent() {
             return
           }
 
-          // If plan is selected and user is created (email confirmation disabled), trigger Stripe checkout
-          if (selectedPlan && selectedPlan.stripePriceId && signUpData?.user) {
-            try {
-              // Wait a moment for the user session to be established
-              await new Promise(resolve => setTimeout(resolve, 500))
-              
-              // Create Stripe checkout session
-              const response = await fetch('/api/stripe/checkout', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  priceId: selectedPlan.stripePriceId,
-                }),
-              })
-
-              const checkoutData = await response.json()
-
-              if (!response.ok) {
-                throw new Error(checkoutData.error || 'Failed to create checkout session')
-              }
-
-              if (checkoutData.url) {
-                // Redirect to Stripe Checkout
-                window.location.href = checkoutData.url
-                return
-              } else {
-                throw new Error('No checkout URL returned')
-              }
-            } catch (checkoutError: any) {
-              console.error('Error creating checkout session:', checkoutError)
-              // If checkout fails, redirect to finish-setup to complete payment
-              toast.error('Account created but payment setup failed. Please complete payment to continue.')
-              router.push('/finish-setup')
-              return
-            }
-          }
-
-          // No plan selected or Stripe Price ID not configured - redirect to finish-setup
+          // Account created successfully (email confirmation disabled)
+          // Always redirect to finish-setup to complete payment
+          // This ensures the session is fully established before attempting checkout
           toast.success('Account created! Please select a plan to continue.')
           router.push('/finish-setup')
           return
