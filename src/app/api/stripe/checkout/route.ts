@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/api'
 import { getPlanByStripePriceId } from '@/config/pricing'
 
 export async function POST(request: NextRequest) {
   try {
-    // Get authenticated user
-    const supabase = await createClient()
+    // Get authenticated user (using API route client)
+    const supabase = createClient(request)
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
     // Debug logging
