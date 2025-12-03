@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button, Input, LoadingButton, LoadingSpinner } from '@/components/ui'
-import { Building2, DollarSign, FileText } from 'lucide-react'
+import { Building2, DollarSign, FileText, Shield } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { updateGeneralSettings } from '@/app/actions/settings'
 import { sanitizeString, sanitizeEmail, sanitizePhone } from '@/lib/utils/sanitize'
@@ -25,6 +25,8 @@ function GeneralSettingsContent() {
     company_email: '',
     company_website: '',
     default_quote_notes: '',
+    default_warranty_text: '',
+    default_disclosure_text: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -95,6 +97,8 @@ function GeneralSettingsContent() {
             company_email: teamData.company_email || '',
             company_website: teamData.company_website || '',
             default_quote_notes: teamData.default_quote_notes || '',
+            default_warranty_text: teamData.default_warranty_text || '',
+            default_disclosure_text: teamData.default_disclosure_text || '',
           })
         }
       } catch (error: any) {
@@ -143,6 +147,8 @@ function GeneralSettingsContent() {
         company_email: formData.company_email ? sanitizeEmail(formData.company_email) : undefined,
         company_website: sanitizeString(formData.company_website) || undefined,
         default_quote_notes: sanitizeString(formData.default_quote_notes) || undefined,
+        default_warranty_text: sanitizeString(formData.default_warranty_text) || undefined,
+        default_disclosure_text: sanitizeString(formData.default_disclosure_text) || undefined,
       }
 
       const result = await updateGeneralSettings(sanitizedData)
@@ -279,6 +285,51 @@ function GeneralSettingsContent() {
               />
               <p className="text-sm text-gray-500 mt-2">
                 This text will be pre-filled in the notes field when creating new quotes.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 4: Legal & Compliance */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-amber-100 rounded-lg">
+              <Shield className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Legal & Compliance</h2>
+              <p className="text-sm text-gray-500">Standard warranty and legal disclosures for all quotes</p>
+            </div>
+          </div>
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Standard Warranty
+              </label>
+              <textarea
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-[100px] disabled:bg-gray-50 disabled:cursor-not-allowed"
+                placeholder="e.g., All workmanship is warranted for a period of one (1) year from the date of completion..."
+                value={formData.default_warranty_text}
+                onChange={(e) => setFormData({ ...formData, default_warranty_text: e.target.value })}
+                disabled={isReadOnly}
+              />
+              <p className="text-sm text-gray-500 mt-2">
+                This warranty text will automatically appear at the bottom of every PDF quote.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Legal Disclosures
+              </label>
+              <textarea
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-[100px] disabled:bg-gray-50 disabled:cursor-not-allowed"
+                placeholder="e.g., Contractor is licensed and insured. License #12345. Prices valid for 30 days..."
+                value={formData.default_disclosure_text}
+                onChange={(e) => setFormData({ ...formData, default_disclosure_text: e.target.value })}
+                disabled={isReadOnly}
+              />
+              <p className="text-sm text-gray-500 mt-2">
+                Legal disclosures will automatically appear at the bottom of every PDF quote.
               </p>
             </div>
           </div>

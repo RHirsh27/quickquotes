@@ -19,6 +19,8 @@ export async function updateGeneralSettings(data: {
   company_email?: string
   company_website?: string
   default_quote_notes?: string
+  default_warranty_text?: string
+  default_disclosure_text?: string
 }): Promise<UpdateGeneralSettingsResult> {
   try {
     const supabase = await createClient()
@@ -76,6 +78,12 @@ export async function updateGeneralSettings(data: {
     }
     if (data.default_quote_notes !== undefined) {
       updateData.default_quote_notes = data.default_quote_notes || null
+    }
+    if (data.default_warranty_text !== undefined) {
+      updateData.default_warranty_text = data.default_warranty_text || null
+    }
+    if (data.default_disclosure_text !== undefined) {
+      updateData.default_disclosure_text = data.default_disclosure_text || null
     }
 
     // Update team settings

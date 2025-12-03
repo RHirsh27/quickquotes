@@ -44,7 +44,14 @@ const styles = StyleSheet.create({
   grandTotal: { fontSize: 14, marginTop: 8 },
   
   footer: { position: 'absolute', bottom: 30, left: 40, right: 40, textAlign: 'center', color: '#999', fontSize: 9 },
-  notesSection: { marginTop: 40, padding: 10, backgroundColor: '#f9fafb' }
+  notesSection: { marginTop: 40, padding: 10, backgroundColor: '#f9fafb' },
+  
+  // Legal Section
+  legalSection: { marginTop: 30, paddingTop: 15, borderTopWidth: 0.5, borderTopColor: '#ddd' },
+  legalTitle: { fontSize: 8, fontWeight: 'bold', color: '#666', marginBottom: 4, textTransform: 'uppercase' },
+  legalText: { fontSize: 8, color: '#666', lineHeight: 1.4 },
+  warrantySection: { marginBottom: 12 },
+  disclosureSection: { marginBottom: 12 }
 })
 
 export const QuotePDF = ({ quote, items, customer, team }: QuotePDFProps) => (
@@ -148,6 +155,24 @@ export const QuotePDF = ({ quote, items, customer, team }: QuotePDFProps) => (
         <View style={styles.notesSection}>
           <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Notes / Terms:</Text>
           <Text>{quote.notes}</Text>
+        </View>
+      )}
+
+      {/* Legal Section: Warranty & Disclosures */}
+      {(team?.default_warranty_text || team?.default_disclosure_text) && (
+        <View style={styles.legalSection}>
+          {team?.default_warranty_text && (
+            <View style={styles.warrantySection}>
+              <Text style={styles.legalTitle}>Warranty</Text>
+              <Text style={styles.legalText}>{team.default_warranty_text}</Text>
+            </View>
+          )}
+          {team?.default_disclosure_text && (
+            <View style={styles.disclosureSection}>
+              <Text style={styles.legalTitle}>Legal Disclosures</Text>
+              <Text style={styles.legalText}>{team.default_disclosure_text}</Text>
+            </View>
+          )}
         </View>
       )}
 
