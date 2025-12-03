@@ -160,7 +160,7 @@ export async function addSingleSeat(subscriptionId: string): Promise<void> {
   const teamPlan = PRICING_PLANS.TEAM
   
   // Validate EXTRA_SEAT_PRICE_ID is configured
-  if (!EXTRA_SEAT_PRICE_ID || EXTRA_SEAT_PRICE_ID === '') {
+  if (!EXTRA_SEAT_PRICE_ID) {
     throw new Error('EXTRA_SEAT_PRICE_ID is not configured. Please contact support.')
   }
   
