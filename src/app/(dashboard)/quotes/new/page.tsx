@@ -338,11 +338,16 @@ export default function NewQuotePage() {
     }
   }
 
+  // --- VALIDATION HELPERS ---
+  const hasCustomer = mode === 'select_customer' ? !!selectedCustomerId : !!newCustomer.name.trim()
+  const hasItems = items.length > 0
+  const canSubmit = hasCustomer && hasItems
+
   // --- RENDER ---
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 pb-32">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50">
       {/* Top Bar */}
-      <div className="bg-white px-4 py-3 shadow-sm flex items-center gap-2 sticky top-0 z-10">
+      <div className="flex-none bg-white px-4 py-3 shadow-sm flex items-center gap-2 z-10">
         <Link href="/dashboard">
           <Button variant="ghost" className="p-2">
             <ChevronLeft className="h-6 w-6" />
@@ -351,7 +356,9 @@ export default function NewQuotePage() {
         <h1 className="text-lg font-bold">New Quote</h1>
       </div>
 
-      <div className="p-4 space-y-6 max-w-2xl mx-auto w-full">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-6 max-w-2xl mx-auto w-full pb-6">
         
         {/* 1. CUSTOMER SECTION */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
@@ -589,25 +596,40 @@ export default function NewQuotePage() {
           </div>
         </div>
 
+        </div>
       </div>
 
-      {/* STICKY FOOTER ACTIONS */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 pb-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex gap-3 z-20">
-        <Button 
-          variant="outline" 
-          className="flex-1"
-          onClick={() => handleSave('draft')}
-          disabled={loading}
-        >
-          Save Draft
-        </Button>
-        <Button 
-          className="flex-1"
-          onClick={() => handleSave('sent')}
-          disabled={loading}
-        >
-          {loading ? 'Saving...' : 'Finish & Send'}
-        </Button>
+      {/* ACTION BAR FOOTER - Always visible at bottom */}
+      <div className="flex-none bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50">
+        {/* Validation Feedback */}
+        {!canSubmit && (
+          <div className="px-4 pt-3 pb-0">
+            <p className="text-sm text-amber-600 text-center">
+              {!hasCustomer && !hasItems && 'Please select a customer and add at least one item'}
+              {!hasCustomer && hasItems && 'Please select a customer to continue'}
+              {hasCustomer && !hasItems && 'Add at least one item to continue'}
+            </p>
+          </div>
+        )}
+        
+        {/* Action Buttons */}
+        <div className="p-4 flex gap-3 max-w-2xl mx-auto w-full">
+          <Button 
+            variant="outline" 
+            className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+            onClick={() => handleSave('draft')}
+            disabled={loading}
+          >
+            Save Draft
+          </Button>
+          <Button 
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={() => handleSave('sent')}
+            disabled={loading}
+          >
+            {loading ? 'Saving...' : 'Send Quote'}
+          </Button>
+        </div>
       </div>
 
     </div>
