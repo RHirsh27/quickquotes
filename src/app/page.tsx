@@ -65,7 +65,7 @@ export default function LandingPage() {
             <p className="text-xl text-slate-400 mb-8 leading-relaxed">
               Ditch the paperwork. Quote, invoice, and get paid from your truck in seconds.
             </p>
-            <Link href="/signup?plan=CREW">
+            <Link href="/api/checkout?plan=crew">
               <Button className="bg-blue-600 hover:bg-blue-500 text-white text-lg px-8 py-6 h-auto shadow-[0_0_20px_rgba(37,99,235,0.5)]">
                 Start Quoting for Free
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -299,8 +299,8 @@ export default function LandingPage() {
                     </p>
                   )}
 
-                  {/* CTA Button */}
-                  <Link href={`/signup?plan=${plan.id}`} className="block">
+                  {/* CTA Button - Direct to Stripe Checkout */}
+                  <Link href={`/api/checkout?plan=${plan.id.toLowerCase()}`} className="block">
                     <Button
                       className={`w-full ${
                         isHighlighted
@@ -329,7 +329,7 @@ export default function LandingPage() {
             <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
               Join thousands of tradespeople who are already saving time and winning more jobs.
             </p>
-            <Link href="/signup?plan=CREW">
+            <Link href="/api/checkout?plan=crew">
               <Button className="bg-blue-600 hover:bg-blue-500 text-white text-lg px-8 py-6 h-auto shadow-[0_0_20px_rgba(37,99,235,0.5)]">
                 Start Quoting for Free
                 <ArrowRight className="ml-2 h-5 w-5" />

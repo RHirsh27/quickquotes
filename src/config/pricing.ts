@@ -128,3 +128,11 @@ export function getNextPlan(currentPlanId: PlanId): PricingPlan | null {
   return PRICING_PLANS[planOrder[currentIndex + 1]]
 }
 
+/**
+ * Get plan by ID (case-insensitive)
+ */
+export function getPlanByIdCaseInsensitive(planId: string): PricingPlan | null {
+  const upperPlanId = planId.toUpperCase() as PlanId
+  return PRICING_PLANS[upperPlanId] || null
+}
+
