@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { Settings, Users, CreditCard, Building2 } from 'lucide-react'
+import { Settings, Users, CreditCard, Building2, Receipt } from 'lucide-react'
 import { Button } from '@/components/ui'
 
 export default function SettingsLayout({
@@ -44,6 +44,7 @@ export default function SettingsLayout({
   const settingsTabs = [
     { href: '/settings/general', label: 'General', icon: Building2, ownerOnly: true },
     { href: '/settings/team', label: 'Team', icon: Users, ownerOnly: true },
+    { href: '/settings/billing', label: 'Billing', icon: Receipt, ownerOnly: true },
     { href: '/settings/payments', label: 'Payments', icon: CreditCard, ownerOnly: true },
   ].filter(tab => !tab.ownerOnly || userRole === 'owner')
 
