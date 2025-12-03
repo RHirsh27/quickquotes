@@ -91,6 +91,8 @@ export interface Subscription {
   status: 'active' | 'canceled' | 'past_due' | 'trialing' | 'incomplete' | 'incomplete_expired' | 'unpaid' | 'paused'
   plan_id: string | null // Stripe Price ID
   current_period_end: string | null // timestamp
+  trial_ends_at: string | null // 14-day trial end date
+  is_trial: boolean // true if in trial period, false if paid subscription
   created_at: string
   updated_at: string
 }

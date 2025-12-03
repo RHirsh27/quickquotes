@@ -52,7 +52,7 @@ export interface PricingPlan {
 // 5. Test checkout flow before launching
 // =============================================================================
 
-export const EXTRA_SEAT_PRICE_ID = ""; // TODO: Set this to your Stripe Price ID for extra seats ($25/month)
+export const EXTRA_SEAT_PRICE_ID = "price_1SZhk5CCOgkFoQDAw4bb166l"; // Extra Seat Price ID for Team plan overage ($25/month)
 
 export const APPLICATION_FEE_PERCENT = 0.01; // 1% platform fee on Stripe Connect payments
 
@@ -63,7 +63,7 @@ export const PRICING_PLANS: Record<PlanId, PricingPlan> = {
     price: 29,
     interval: "month",
     userLimit: 1,
-    stripePriceId: "", // TODO: Set this to your Stripe Price ID (from Stripe Dashboard > Products)
+    stripePriceId: "price_1SZBBcCCOgkFoQDA9XbZzVpz",
     description: "For the owner-operator.",
     features: ["Unlimited Quotes", "Branded PDF", "Client History", "Accept Credit Cards"]
   },
@@ -73,7 +73,7 @@ export const PRICING_PLANS: Record<PlanId, PricingPlan> = {
     price: 99,
     interval: "month",
     userLimit: 5,
-    stripePriceId: "", // TODO: Set this to your Stripe Price ID (from Stripe Dashboard > Products)
+    stripePriceId: "price_1SZBCVCCOgkFoQDA1I8d7xnu",
     description: "For small crews (up to 5).",
     features: ["Everything in Solo", "Up to 5 Users", "Shared Price Book", "Team Dashboard"],
     label: "Best Value"
@@ -84,7 +84,7 @@ export const PRICING_PLANS: Record<PlanId, PricingPlan> = {
     price: 199,
     interval: "month",
     userLimit: 10,
-    stripePriceId: "", // TODO: Set this to your Stripe Price ID (from Stripe Dashboard > Products)
+    stripePriceId: "price_1SZBDTCCOgkFoQDA0seUDd2R",
     description: "For growing businesses.",
     features: ["Everything in Crew", "Up to 10 Users", "Role Permissions", "Priority Support"],
     footer: "+ $25/seat after 10 users",

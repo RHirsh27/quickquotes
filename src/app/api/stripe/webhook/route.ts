@@ -4,6 +4,7 @@ import Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { sendPaymentReceivedEmail, sendInvoiceReceiptEmail } from '@/lib/emails'
+import { convertTrialToPaid } from '@/lib/trial'
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
@@ -33,7 +34,7 @@ async function activateSubscription(
     { expand: ['items.data.price.product'] }
   ) as Stripe.Subscription
 
-  // Update or create subscription record
+  // Update subscription record and convert trial to paid if applicable
   const { error: upsertError } = await supabase
     .from('subscriptions')
     .upsert({
@@ -45,6 +46,8 @@ async function activateSubscription(
       current_period_end: (subscription as any).current_period_end
         ? new Date((subscription as any).current_period_end * 1000).toISOString()
         : null,
+      is_trial: false, // Convert trial to paid
+      trial_ends_at: null, // Clear trial end date
     }, {
       onConflict: 'user_id',
       ignoreDuplicates: false,
@@ -55,7 +58,7 @@ async function activateSubscription(
     throw upsertError
   }
 
-  console.log(`[Webhook] Subscription activated for user ${userId}`)
+  console.log(`[Webhook] Subscription activated for user ${userId} (trial converted to paid if applicable)`)
 }
 
 /**

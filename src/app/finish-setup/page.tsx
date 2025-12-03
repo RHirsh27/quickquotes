@@ -86,11 +86,15 @@ export default function FinishSetupPage() {
       <div className="container mx-auto px-4 py-16">
         {/* Header Section */}
         <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold mb-6">
+            <Check className="h-4 w-4" />
+            You're already in your 14-day trial - Upgrade anytime!
+          </div>
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Select Your Plan
+            Upgrade to Continue After Trial
           </h1>
           <p className="text-lg text-gray-600">
-            Start your 14-day free trial. Cancel anytime.
+            Choose a plan to keep your data and unlock full features
           </p>
         </div>
 

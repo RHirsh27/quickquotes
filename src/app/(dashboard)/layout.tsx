@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { BottomNav } from '@/components/layout/BottomNav'
 import Navbar from '@/components/layout/navbar'
 import { DashboardWrapper } from '@/components/layout/DashboardWrapper'
+import { getSubscriptionStatus } from '@/lib/trial'
+import { TrialBanner } from '@/components/layout/TrialBanner'
 
 // Mark this route as dynamic since it uses cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -37,26 +39,18 @@ export default async function DashboardLayout({
       // Continue without role - will default to showing all items
     }
 
-    // STRICT PAYWALL: Check subscription status for ALL users (owners and members)
-    // Only owners can have subscriptions, but members need to be on a team with an active subscription
+    // SUBSCRIPTION & TRIAL CHECK: Check if user has access (paid subscription OR active trial)
+    // For team members, check if owner has access
     try {
-      let hasActiveSubscription = false
+      let hasAccess = false
+      let subscriptionStatus = null
 
       if (userRole === 'owner') {
-        // For owners: Check their own subscription
-        const { data: subscription, error: subError } = await supabase
-          .from('subscriptions')
-          .select('status')
-          .eq('user_id', user.id)
-          .in('status', ['active', 'trialing'])
-          .limit(1)
-          .maybeSingle()
-
-        if (!subError && subscription) {
-          hasActiveSubscription = true
-        }
+        // For owners: Check their own subscription/trial
+        subscriptionStatus = await getSubscriptionStatus(user.id)
+        hasAccess = subscriptionStatus.hasAccess
       } else if (userRole === 'member') {
-        // For members: Check if their team owner has an active subscription
+        // For members: Check if their team owner has an active subscription/trial
         const { data: teamMember, error: tmError } = await supabase
           .from('team_members')
           .select('team_id')
@@ -75,49 +69,33 @@ export default async function DashboardLayout({
             .maybeSingle()
 
           if (!ownerError && owner) {
-            // Check owner's subscription
-            const { data: subscription, error: subError } = await supabase
-              .from('subscriptions')
-              .select('status')
-              .eq('user_id', owner.user_id)
-              .in('status', ['active', 'trialing'])
-              .limit(1)
-              .maybeSingle()
-
-            if (!subError && subscription) {
-              hasActiveSubscription = true
-            }
+            // Check owner's subscription/trial
+            subscriptionStatus = await getSubscriptionStatus(owner.user_id)
+            hasAccess = subscriptionStatus.hasAccess
           }
         }
       } else {
-        // No role assigned - check if user has a subscription (might be a new user)
-        const { data: subscription, error: subError } = await supabase
-          .from('subscriptions')
-          .select('status')
-          .eq('user_id', user.id)
-          .in('status', ['active', 'trialing'])
-          .limit(1)
-          .maybeSingle()
-
-        if (!subError && subscription) {
-          hasActiveSubscription = true
-        }
+        // No role assigned - check if user has a subscription/trial
+        subscriptionStatus = await getSubscriptionStatus(user.id)
+        hasAccess = subscriptionStatus.hasAccess
       }
 
-      // If no active subscription found, redirect to finish-setup
-      // Exception: Don't redirect if already on /finish-setup or API routes
-      if (!hasActiveSubscription) {
+      // If no access (no active subscription or trial), redirect to finish-setup
+      if (!hasAccess) {
         redirect('/finish-setup')
       }
     } catch (error) {
-      console.error('[Dashboard Layout] Error checking subscription:', error)
-      // On error, redirect to finish-setup to be safe (strict paywall)
+      console.error('[Dashboard Layout] Error checking subscription/trial:', error)
+      // On error, redirect to finish-setup to be safe
       redirect('/finish-setup')
     }
 
     return (
       <DashboardWrapper>
         <div className="min-h-screen bg-gray-50">
+          {/* Trial Banner (if user is in trial period) */}
+          <TrialBanner userId={user.id} userRole={userRole} />
+
           {/* Desktop Header (Hidden on mobile) */}
           <div className="hidden md:flex items-center justify-between px-8 py-4 bg-white border-b sticky top-0 z-10">
             <div>
