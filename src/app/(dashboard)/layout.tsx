@@ -106,16 +106,16 @@ export default async function DashboardLayout({
         }
       }
 
-      // If no active subscription found, redirect to finish-setup
-      // Exception: Don't redirect if already on /finish-setup (but finish-setup is outside this layout)
+      // If no active subscription found, redirect to checkout
+      // Exception: Don't redirect if already on /checkout (but checkout is outside this layout)
       if (!hasActiveSubscription) {
-        console.log('[Dashboard Layout] No active subscription found, redirecting to finish-setup')
-        redirect('/finish-setup')
+        console.log('[Dashboard Layout] No active subscription found, redirecting to checkout')
+        redirect('/checkout')
       }
     } catch (error) {
       console.error('[Dashboard Layout] Error checking subscription:', error)
-      // On error, redirect to finish-setup to be safe (strict paywall)
-      redirect('/finish-setup')
+      // On error, redirect to checkout to be safe (strict paywall)
+      redirect('/checkout')
     }
 
     // Get subscription status for TrialBanner display

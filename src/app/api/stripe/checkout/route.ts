@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
           },
         ],
         success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/finish-setup`, // Return to finish-setup if canceled
+        cancel_url: `${baseUrl}/checkout`, // Return to checkout if canceled
         metadata: {
           type: 'subscription', // CRITICAL: Required for webhook to activate subscription
           userId: user.id,

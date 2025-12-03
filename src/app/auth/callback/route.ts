@@ -50,10 +50,10 @@ export async function GET(request: Request) {
           .limit(1)
           .maybeSingle()
 
-        // If no subscription or not active/trialing, redirect to finish-setup
+        // If no subscription or not active/trialing, redirect to checkout
         if (subError || !subscription) {
-          console.log('[Auth Callback] No active subscription found, redirecting to finish-setup')
-          return NextResponse.redirect(new URL('/finish-setup', request.url))
+          console.log('[Auth Callback] No active subscription found, redirecting to checkout')
+          return NextResponse.redirect(new URL('/checkout', request.url))
         }
 
         // User has active subscription - redirect to dashboard
@@ -90,10 +90,10 @@ export async function GET(request: Request) {
         .limit(1)
         .maybeSingle()
 
-      // If no subscription or not active/trialing, redirect to finish-setup
+      // If no subscription or not active/trialing, redirect to checkout
       if (subError || !subscription) {
-        console.log('[Auth Callback] No active subscription found, redirecting to finish-setup')
-        return NextResponse.redirect(new URL('/finish-setup', request.url))
+        console.log('[Auth Callback] No active subscription found, redirecting to checkout')
+        return NextResponse.redirect(new URL('/checkout', request.url))
       }
 
       // User has active subscription - redirect to dashboard

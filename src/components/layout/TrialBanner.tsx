@@ -53,7 +53,7 @@ export async function TrialBanner({ userId, userRole }: TrialBannerProps) {
           </div>
         </div>
 
-        <Link href="/finish-setup">
+        <Link href="/checkout">
           <Button
             variant="outline"
             className="bg-white text-gray-900 hover:bg-gray-100 border-none text-sm h-9"
