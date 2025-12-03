@@ -9,9 +9,18 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
+    // Debug logging
+    console.log('[Checkout] Auth check:', {
+      hasUser: !!user,
+      userId: user?.id,
+      error: userError?.message,
+      cookies: request.cookies.getAll().map(c => c.name)
+    })
+
     if (userError || !user) {
+      console.error('[Checkout] Unauthorized:', userError?.message || 'No user found')
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - Please sign out and sign in again' },
         { status: 401 }
       )
     }
