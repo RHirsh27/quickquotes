@@ -147,15 +147,21 @@ function AuthPageContent() {
           }
 
           // REGISTER FLOW
+          console.log('[Signup] Starting signup flow')
+
           // Get the base URL for redirect
           const baseUrl = window.location.origin
           const redirectTo = `${baseUrl}/auth/callback`
-          
+
           // Get plan from query params
           const planParam = searchParams.get('plan') as PlanId | null
-          const selectedPlan = planParam && ['SOLO', 'CREW', 'TEAM'].includes(planParam) 
+          console.log('[Signup] Plan parameter from URL:', planParam)
+
+          const selectedPlan = planParam && ['SOLO', 'CREW', 'TEAM'].includes(planParam)
             ? getPlanById(planParam)
             : null
+
+          console.log('[Signup] Selected plan object:', selectedPlan)
 
           const { data: signUpData, error } = await supabase.auth.signUp({ 
             email: sanitizedEmail, 
@@ -187,14 +193,20 @@ function AuthPageContent() {
           // Account created successfully (email confirmation disabled)
           // Redirect to checkout page to complete payment
           // This ensures the session is fully established before attempting checkout
-          toast.success('Account created! Please select a plan to continue.')
+          console.log('[Signup] Account created successfully, redirecting to checkout')
+          console.log('[Signup] Selected plan:', selectedPlan)
+
+          toast.success('Account created! Redirecting to checkout...')
 
           // Include selected plan in URL if available
           const checkoutUrl = selectedPlan
             ? `/checkout?plan=${selectedPlan.id}`
             : '/checkout'
 
-          router.push(checkoutUrl)
+          console.log('[Signup] Redirecting to:', checkoutUrl)
+
+          // Use window.location for more reliable redirect
+          window.location.href = checkoutUrl
           return
         } else {
           // LOGIN FLOW
