@@ -78,7 +78,7 @@ export async function updateSubscriptionSeats(
   const teamPlan = PRICING_PLANS.TEAM
   
   // Validate EXTRA_SEAT_PRICE_ID is configured
-  if (!EXTRA_SEAT_PRICE_ID || EXTRA_SEAT_PRICE_ID === '') {
+  if (!EXTRA_SEAT_PRICE_ID) {
     console.warn('[Stripe] EXTRA_SEAT_PRICE_ID not configured, skipping seat update')
     return
   }
