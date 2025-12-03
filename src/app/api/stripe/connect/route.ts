@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/api'
 
 /**
  * POST /api/stripe/connect
@@ -8,13 +8,21 @@ import { createClient } from '@/lib/supabase/server'
  */
 export async function POST(req: NextRequest) {
   try {
-    // Get authenticated user
-    const supabase = await createClient()
+    // Get authenticated user (using API route client)
+    const supabase = createClient(req)
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
+    // Debug logging
+    console.log('[Stripe Connect] Auth check:', {
+      hasUser: !!user,
+      userId: user?.id,
+      error: userError?.message,
+    })
+
     if (userError || !user) {
+      console.error('[Stripe Connect] Unauthorized:', userError?.message || 'No user found')
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - Please sign out and sign in again' },
         { status: 401 }
       )
     }
