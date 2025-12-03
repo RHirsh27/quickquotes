@@ -185,10 +185,16 @@ function AuthPageContent() {
           }
 
           // Account created successfully (email confirmation disabled)
-          // Always redirect to finish-setup to complete payment
+          // Redirect to checkout page to complete payment
           // This ensures the session is fully established before attempting checkout
           toast.success('Account created! Please select a plan to continue.')
-          router.push('/finish-setup')
+
+          // Include selected plan in URL if available
+          const checkoutUrl = selectedPlan
+            ? `/checkout?plan=${selectedPlan.id}`
+            : '/checkout'
+
+          router.push(checkoutUrl)
           return
         } else {
           // LOGIN FLOW

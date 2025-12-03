@@ -66,7 +66,7 @@ Execute these SQL scripts in **Supabase Dashboard → SQL Editor** in order:
 - [ ] Verify RLS (Row Level Security) is enabled on all tables
 - [ ] Test that RLS policies are working (try querying as different users)
 
-### 2.3 Test Database Functions
+### 2.3 Test Database Funct]*ions
 - [ ] Verify `get_user_primary_team()` RPC function exists and works
 - [ ] Verify `find_user_by_email()` RPC function exists and works
 - [ ] Test `handle_new_user` trigger creates user profile on signup
