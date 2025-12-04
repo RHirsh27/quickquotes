@@ -127,19 +127,8 @@ export default async function DashboardLayout({
           {/* Trial Banner (if user is in trial period) */}
           <TrialBanner userId={user.id} userRole={userRole} />
 
-          {/* Desktop Header (Hidden on mobile) */}
-          <div className="hidden md:flex items-center justify-between px-8 py-4 bg-white border-b sticky top-0 z-10">
-            <div>
-              <h1 className="text-xl font-extrabold text-gray-800" style={{ fontWeight: 800 }}>Quotd</h1>
-              <p className="text-xs text-gray-500 -mt-1">Instant Estimates</p>
-            </div>
-            <Navbar />
-          </div>
-
-          {/* Mobile Header (Visible on mobile) */}
-          <div className="md:hidden">
-            <Navbar />
-          </div>
+          {/* Navbar - Handles both desktop and mobile layouts */}
+          <Navbar />
 
           {/* Main Content - Add top padding on mobile to account for fixed header */}
           <main className="pb-24 md:pb-8 pt-[57px] md:pt-0">
