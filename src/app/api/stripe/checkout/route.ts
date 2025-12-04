@@ -153,8 +153,19 @@ export async function POST(request: NextRequest) {
 
     // Create checkout session with 14-day trial
     const stripe = getStripe()
-    // Use NEXT_PUBLIC_SITE_URL for Vercel, fallback to request origin for localhost
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin
+
+    // IMPORTANT: Construct proper base URL with explicit scheme
+    // Vercel/production should always use NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_APP_URL
+    let baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL
+
+    // Fallback for local development - ensure URL has https:// scheme
+    if (!baseUrl) {
+      const origin = request.nextUrl.origin
+      // If origin doesn't start with http, prepend https
+      baseUrl = origin.startsWith('http') ? origin : `https://${origin}`
+    }
+
+    console.log('[Checkout] Using base URL:', baseUrl)
 
     console.log('[Checkout] Creating Stripe checkout session...', {
       priceId,
