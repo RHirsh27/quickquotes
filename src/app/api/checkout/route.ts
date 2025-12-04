@@ -97,10 +97,12 @@ export async function GET(request: NextRequest) {
       success_url: `${baseUrl}/api/auth/signup-callback?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/?canceled=true`,
 
-      // Consent collection
-      consent_collection: {
-        terms_of_service: 'required',
-      },
+      // NOTE: Consent collection disabled until Terms of Service URL is set in Stripe Dashboard
+      // To enable: Go to https://dashboard.stripe.com/settings/public
+      // Add a "Terms of service URL", then uncomment the lines below:
+      // consent_collection: {
+      //   terms_of_service: 'required',
+      // },
     })
 
     console.log('[Checkout API] Session created successfully:', {
