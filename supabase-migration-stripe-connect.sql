@@ -1,3 +1,8 @@
+DO $$
+BEGIN
+  RAISE NOTICE '✅ Migration completed: Stripe Connect fields added to teams table';
+  RAISE NOTICE '✅ Teams can now connect Stripe to accept payments';
+END $$;
 -- Migration: Add Stripe Connect fields to teams table
 -- Purpose: Store Stripe Connect account information for payment processing
 -- Date: 2025-12-03
@@ -15,8 +20,3 @@ COMMENT ON COLUMN public.teams.stripe_account_id IS 'Stripe Connect Express acco
 COMMENT ON COLUMN public.teams.stripe_account_status IS 'Status of Stripe Connect account: pending, active, restricted';
 
 -- Success message
-DO $$
-BEGIN
-  RAISE NOTICE '✅ Migration completed: Stripe Connect fields added to teams table';
-  RAISE NOTICE '✅ Teams can now connect Stripe to accept payments';
-END $$;

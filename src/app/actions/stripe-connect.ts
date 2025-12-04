@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
-import { redirect } from 'next/navigation'
 
 /**
  * Create a Stripe Connect Express account for a team
@@ -43,10 +42,25 @@ export async function createConnectAccount() {
       return { accountId: team.stripe_account_id, exists: true }
     }
 
-    // Create Stripe Connect Express account
+    // Create Stripe Connect account using controller properties (API version 2025-11-17.clover)
+    // Documentation: https://docs.stripe.com/connect/authentication
     const stripe = getStripe()
     const account = await stripe.accounts.create({
-      type: 'express',
+      // IMPORTANT: Use controller properties instead of deprecated "type" property
+      controller: {
+        // Platform controls fee collection - connected account pays Stripe fees
+        fees: {
+          payer: 'account' as const
+        },
+        // Stripe handles payment disputes and losses (not platform)
+        losses: {
+          payments: 'stripe' as const
+        },
+        // Connected account gets full access to Stripe dashboard
+        stripe_dashboard: {
+          type: 'full' as const
+        }
+      },
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
@@ -186,5 +200,152 @@ export async function getTeamConnectAccount() {
   } catch (error: any) {
     console.error('[Stripe Connect] Error getting team account:', error)
     return { error: error.message || 'Failed to get team account' }
+  }
+}
+
+/**
+ * Create a product on the connected account
+ * Uses Stripe-Account header to create products on behalf of connected account
+ */
+export async function createConnectProduct(data: {
+  name: string
+  description: string
+  priceInCents: number
+  currency?: string
+}) {
+  try {
+    const supabase = await createClient()
+
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return { error: 'Unauthorized' }
+    }
+
+    // Get user's team (must be owner)
+    const { data: teamMember, error: tmError } = await supabase
+      .from('team_members')
+      .select('team_id, role')
+      .eq('user_id', user.id)
+      .single()
+
+    if (tmError || !teamMember || teamMember.role !== 'owner') {
+      return { error: 'Only team owners can create products' }
+    }
+
+    // Get team's Stripe Connect account
+    const { data: team, error: teamError } = await supabase
+      .from('teams')
+      .select('stripe_account_id, stripe_account_status')
+      .eq('id', teamMember.team_id)
+      .single()
+
+    if (teamError) {
+      return { error: 'Failed to fetch team data' }
+    }
+
+    if (!team.stripe_account_id) {
+      return { error: 'No Stripe Connect account found. Please complete onboarding first.' }
+    }
+
+    // Validate product data
+    if (!data.name || data.name.trim().length === 0) {
+      return { error: 'Product name is required' }
+    }
+
+    if (!data.priceInCents || data.priceInCents <= 0) {
+      return { error: 'Price must be greater than 0' }
+    }
+
+    // Create product on connected account using Stripe-Account header
+    // Documentation: https://docs.stripe.com/connect/authentication
+    const stripe = getStripe()
+    const product = await stripe.products.create({
+      name: data.name,
+      description: data.description || undefined,
+      default_price_data: {
+        unit_amount: data.priceInCents,
+        currency: data.currency || 'usd',
+      },
+    }, {
+      // IMPORTANT: Use stripeAccount to set Stripe-Account header
+      // This creates the product on the connected account, not the platform
+      stripeAccount: team.stripe_account_id,
+    })
+
+    console.log('[Stripe Connect] Created product:', product.id, 'on account:', team.stripe_account_id)
+
+    return {
+      productId: product.id,
+      priceId: product.default_price as string,
+      name: product.name,
+    }
+  } catch (error: any) {
+    console.error('[Stripe Connect] Error creating product:', error)
+    return { error: error.message || 'Failed to create product' }
+  }
+}
+
+/**
+ * List products for the connected account
+ */
+export async function listConnectProducts() {
+  try {
+    const supabase = await createClient()
+
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return { error: 'Unauthorized' }
+    }
+
+    // Get user's team
+    const { data: teamMember, error: tmError } = await supabase
+      .from('team_members')
+      .select('team_id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (tmError || !teamMember) {
+      return { error: 'Team not found' }
+    }
+
+    // Get team's Stripe Connect account
+    const { data: team, error: teamError } = await supabase
+      .from('teams')
+      .select('stripe_account_id')
+      .eq('id', teamMember.team_id)
+      .single()
+
+    if (teamError) {
+      return { error: 'Failed to fetch team data' }
+    }
+
+    if (!team.stripe_account_id) {
+      return { products: [] }
+    }
+
+    // List products from connected account using Stripe-Account header
+    const stripe = getStripe()
+    const products = await stripe.products.list({
+      limit: 100,
+      active: true,
+      expand: ['data.default_price'],
+    }, {
+      // Use stripeAccount to query the connected account's products
+      stripeAccount: team.stripe_account_id,
+    })
+
+    return {
+      products: products.data.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        defaultPrice: p.default_price,
+      }))
+    }
+  } catch (error: any) {
+    console.error('[Stripe Connect] Error listing products:', error)
+    return { error: error.message || 'Failed to list products' }
   }
 }
