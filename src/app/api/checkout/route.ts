@@ -31,8 +31,16 @@ export async function GET(request: NextRequest) {
     // Generate unique client reference ID to track this signup
     const clientReferenceId = `signup_${Date.now()}_${randomBytes(8).toString('hex')}`
 
-    // Get base URL for redirects
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
+    // IMPORTANT: Construct proper base URL with explicit scheme
+    // Vercel/production should always use NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_APP_URL
+    let baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL
+
+    // Fallback for local development - ensure URL has https:// scheme
+    if (!baseUrl) {
+      const origin = request.nextUrl.origin
+      // If origin doesn't start with http, prepend https
+      baseUrl = origin.startsWith('http') ? origin : `https://${origin}`
+    }
 
     console.log('[Checkout API] Creating Stripe session:', {
       plan: plan.name,
