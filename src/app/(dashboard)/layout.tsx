@@ -141,8 +141,8 @@ export default async function DashboardLayout({
             <Navbar />
           </div>
 
-          {/* Main Content */}
-          <main className="pb-24 md:pb-8">
+          {/* Main Content - Add top padding on mobile to account for fixed header */}
+          <main className="pb-24 md:pb-8 pt-[57px] md:pt-0">
             {children}
           </main>
 

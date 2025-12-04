@@ -101,8 +101,8 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b sticky top-0 z-40">
+      {/* Mobile Header - Fixed at top */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-white border-b">
         <button
           onClick={() => setMobileMenuOpen(true)}
           className="p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
@@ -116,98 +116,97 @@ export default function Navbar() {
         <div className="w-10" /> {/* Spacer for centering */}
       </div>
 
-      {/* Mobile Slide-Over Menu */}
-      <div
-        className={`md:hidden fixed inset-0 z-50 transition-opacity duration-300 ${
-          mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-      >
-        {/* Backdrop */}
-        <div
-          className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
-            mobileMenuOpen ? 'opacity-100' : 'opacity-0'
-          }`}
-          onClick={() => setMobileMenuOpen(false)}
-        />
+      {/* Mobile Slide-Over Overlay (Sheet Pattern) */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          {/* Backdrop - Semi-transparent overlay */}
+          <div
+            className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${
+              mobileMenuOpen ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
 
-        {/* Slide-over panel */}
-        <div
-          className={`absolute inset-y-0 left-0 w-80 max-w-[85vw] bg-white shadow-2xl transform transition-transform duration-300 ease-out ${
-            mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
-        >
-          {/* Panel Header */}
-          <div className="flex items-center justify-between px-4 py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700">
-            <div>
-              <h2 className="text-xl font-extrabold text-white" style={{ fontWeight: 800 }}>Quotd</h2>
-              <p className="text-xs text-blue-100 -mt-0.5">Instant Estimates</p>
-            </div>
-            <button
-              onClick={() => setMobileMenuOpen(false)}
-              className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
-              aria-label="Close menu"
-            >
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-
-          {/* Navigation Links */}
-          <nav className="flex-1 overflow-y-auto py-4">
-            <div className="px-3 space-y-1">
-              {navLinks.map((link) => {
-                const Icon = link.icon
-                const active = isActive(link.href)
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
-                      active
-                        ? 'bg-blue-50 text-blue-600 shadow-sm'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    <Icon className={`h-5 w-5 ${active ? 'text-blue-600' : 'text-gray-500'}`} />
-                    <span>{link.label}</span>
-                    {active && (
-                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600" />
-                    )}
-                  </Link>
-                )
-              })}
-            </div>
-
-            {/* Divider */}
-            <div className="my-4 mx-4 border-t border-gray-200" />
-
-            {/* Help & Support */}
-            <div className="px-3 space-y-1">
+          {/* Slide-over panel */}
+          <div
+            className={`absolute inset-y-0 left-0 w-80 max-w-[85vw] bg-white shadow-2xl transform transition-transform duration-300 ease-out ${
+              mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+            } flex flex-col`}
+          >
+            {/* Panel Header */}
+            <div className="flex items-center justify-between px-4 py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700 shrink-0">
+              <div>
+                <h2 className="text-xl font-extrabold text-white" style={{ fontWeight: 800 }}>Quotd</h2>
+                <p className="text-xs text-blue-100 -mt-0.5">Instant Estimates</p>
+              </div>
               <button
-                onClick={() => {
-                  setMobileMenuOpen(false)
-                  setShowFeedbackModal(true)
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Close menu"
               >
-                <HelpCircle className="h-5 w-5 text-gray-500" />
-                <span>Help & Feedback</span>
+                <X className="h-6 w-6" />
               </button>
             </div>
-          </nav>
 
-          {/* Sign Out Button */}
-          <div className="border-t border-gray-200 p-4 bg-gray-50/50">
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-base font-medium text-red-600 hover:bg-red-50 transition-all duration-200"
-            >
-              <LogOut className="h-5 w-5" />
-              <span>Sign Out</span>
-            </button>
+            {/* Navigation Links - Scrollable */}
+            <nav className="flex-1 overflow-y-auto py-4">
+              <div className="px-3 space-y-1">
+                {navLinks.map((link) => {
+                  const Icon = link.icon
+                  const active = isActive(link.href)
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
+                        active
+                          ? 'bg-blue-50 text-blue-600 shadow-sm'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                    >
+                      <Icon className={`h-5 w-5 ${active ? 'text-blue-600' : 'text-gray-500'}`} />
+                      <span>{link.label}</span>
+                      {active && (
+                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600" />
+                      )}
+                    </Link>
+                  )
+                })}
+              </div>
+
+              {/* Divider */}
+              <div className="my-4 mx-4 border-t border-gray-200" />
+
+              {/* Help & Support */}
+              <div className="px-3 space-y-1">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    setShowFeedbackModal(true)
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200"
+                >
+                  <HelpCircle className="h-5 w-5 text-gray-500" />
+                  <span>Help & Feedback</span>
+                </button>
+              </div>
+            </nav>
+
+            {/* Sign Out Button - Fixed at bottom */}
+            <div className="border-t border-gray-200 p-4 bg-gray-50/50 shrink-0">
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-base font-medium text-red-600 hover:bg-red-50 transition-all duration-200"
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
     </>
