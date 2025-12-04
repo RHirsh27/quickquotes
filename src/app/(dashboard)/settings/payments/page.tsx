@@ -2,276 +2,336 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { Button, LoadingSpinner } from '@/components/ui'
-import { CreditCard, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react'
+import { Button } from '@/components/ui'
+import { CreditCard, CheckCircle, AlertCircle, ExternalLink, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import type { User } from '@/lib/types'
+import {
+  getTeamConnectAccount,
+  createConnectAccount,
+  createConnectOnboardingLink,
+  getConnectAccountStatus,
+  createConnectLoginLink,
+} from '@/app/actions/stripe-connect'
 
 function PaymentsSettingsContent() {
-  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [onboarding, setOnboarding] = useState(false)
+  const [connectLoading, setConnectLoading] = useState(false)
+  const [accountId, setAccountId] = useState<string | null>(null)
+  const [accountStatus, setAccountStatus] = useState<any>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
-
-  // Redirect members to profile (owners only)
-  useEffect(() => {
-    async function checkAccess() {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (!authUser) return
-
-      const { data: teamId } = await supabase.rpc('get_user_primary_team')
-      if (!teamId) return
-
-      const { data: teamMember } = await supabase
-        .from('team_members')
-        .select('role')
-        .eq('team_id', teamId)
-        .eq('user_id', authUser.id)
-        .single()
-
-      if (teamMember && teamMember.role === 'member') {
-        // Redirect members to profile
-        router.push('/profile')
-        return
-      }
-    }
-    checkAccess()
-  }, [supabase, router])
 
   // Check for success/refresh params from Stripe redirect
   useEffect(() => {
-    const success = searchParams.get('success')
-    const refresh = searchParams.get('refresh')
+    const connectParam = searchParams.get('connect')
 
-    if (success === 'true') {
-      toast.success('Stripe Connect account setup completed!')
-      // Refresh user data
-      fetchUserProfile()
+    if (connectParam === 'success') {
+      toast.success('Stripe Connect setup completed!')
+      loadAccountData()
       // Clean URL
       router.replace('/settings/payments')
-    } else if (refresh === 'true') {
+    } else if (connectParam === 'refresh') {
       toast('Please complete your account setup', { icon: 'ℹ️' })
+      loadAccountData()
       // Clean URL
       router.replace('/settings/payments')
     }
   }, [searchParams, router])
 
-  const fetchUserProfile = async () => {
+  const loadAccountData = async () => {
+    setLoading(true)
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (!authUser) {
-        router.push('/login')
+      // Get team's Connect account
+      const result = await getTeamConnectAccount()
+
+      if (result.error) {
+        console.error('Error loading account:', result.error)
         return
       }
 
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .single()
+      if (result.accountId) {
+        setAccountId(result.accountId)
 
-      if (error) {
-        console.error('Error fetching user profile:', error)
-        toast.error('Failed to load profile')
-        return
+        // Fetch account status from Stripe
+        const statusResult = await getConnectAccountStatus(result.accountId)
+        if (!statusResult.error) {
+          setAccountStatus(statusResult)
+        }
       }
-
-      setUser(userData as User)
     } catch (error: any) {
-      console.error('Error fetching user profile:', error)
-      toast.error('Failed to load profile')
+      console.error('Error loading account data:', error)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchUserProfile()
-  }, [supabase])
+    loadAccountData()
+  }, [])
 
-  const handleSetupPayouts = async () => {
-    setOnboarding(true)
+  const handleConnectStripe = async () => {
+    setConnectLoading(true)
     try {
-      const response = await fetch('/api/stripe/connect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies for authentication
-      })
+      // Create or get existing account
+      const accountResult = await createConnectAccount()
 
-      const data = await response.json()
+      if (accountResult.error) {
+        throw new Error(accountResult.error)
+      }
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to start onboarding')
+      if (!accountResult.accountId) {
+        throw new Error('No account ID returned')
+      }
+
+      // Create onboarding link
+      const linkResult = await createConnectOnboardingLink(accountResult.accountId)
+
+      if (linkResult.error) {
+        throw new Error(linkResult.error)
+      }
+
+      if (!linkResult.url) {
+        throw new Error('No onboarding URL returned')
       }
 
       // Redirect to Stripe onboarding
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        throw new Error('No onboarding URL received')
-      }
+      window.location.href = linkResult.url
     } catch (error: any) {
-      console.error('Error setting up payouts:', error)
-      toast.error(error.message || 'Failed to start payout setup')
-      setOnboarding(false)
+      console.error('Error connecting Stripe:', error)
+      toast.error(error.message || 'Failed to start Stripe setup')
+      setConnectLoading(false)
     }
   }
 
   const handleManageAccount = async () => {
-    if (!user?.stripe_connect_id) {
+    if (!accountId) {
       toast.error('No Stripe Connect account found')
       return
     }
 
-    setOnboarding(true)
+    setConnectLoading(true)
     try {
-      const response = await fetch('/api/stripe/connect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies for authentication
-      })
+      const result = await createConnectLoginLink(accountId)
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to open account management')
+      if (result.error) {
+        throw new Error(result.error)
       }
 
-      // Redirect to Stripe account management
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        throw new Error('No account URL received')
+      if (!result.url) {
+        throw new Error('No login URL returned')
       }
+
+      // Redirect to Stripe Express dashboard
+      window.location.href = result.url
     } catch (error: any) {
-      console.error('Error opening account management:', error)
-      toast.error(error.message || 'Failed to open account management')
-      setOnboarding(false)
+      console.error('Error opening Stripe dashboard:', error)
+      toast.error(error.message || 'Failed to open Stripe dashboard')
+      setConnectLoading(false)
     }
   }
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-center items-center min-h-[400px]">
-          <LoadingSpinner size="lg" />
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     )
   }
 
-  const hasStripeConnect = !!user?.stripe_connect_id
-  const payoutsEnabled = user?.payouts_enabled || false
+  const isFullyOnboarded = accountStatus?.charges_enabled && accountStatus?.details_submitted
+  const hasPartialSetup = accountId && !isFullyOnboarded
 
   return (
-    <div className="max-w-2xl">
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Payment Settings</h1>
+        <p className="text-gray-600 mt-1">
+          Connect your Stripe account to accept payments from customers
+        </p>
+      </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <CreditCard className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Payout Settings</h2>
+      {/* Stripe Connect Section */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+            <CreditCard className="h-6 w-6 text-blue-600" />
+          </div>
 
-              {hasStripeConnect ? (
-                <div className="space-y-4">
-                  {payoutsEnabled ? (
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+              Stripe Connect
+            </h2>
+
+            {!accountId ? (
+              // Not connected
+              <>
+                <p className="text-gray-600 mb-4">
+                  Connect your Stripe account to start accepting payments from your customers.
+                  Stripe handles all payment processing securely.
+                </p>
+                <Button
+                  onClick={handleConnectStripe}
+                  disabled={connectLoading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {connectLoading ? (
                     <>
-                      <p className="text-gray-600 mb-2">
-                        Payouts are active.
-                      </p>
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                        Connected
-                      </span>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    'Connect Stripe Account'
+                  )}
+                </Button>
+              </>
+            ) : isFullyOnboarded ? (
+              // Fully connected and verified
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span className="text-green-700 font-medium">
+                    Stripe Connected - Ready to Accept Payments
+                  </span>
+                </div>
+
+                {accountStatus && (
+                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                          Charges
+                        </p>
+                        <div className="flex items-center gap-1">
+                          {accountStatus.charges_enabled ? (
+                            <>
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-700">Enabled</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="h-4 w-4 text-orange-600" />
+                              <span className="text-sm font-medium text-orange-700">Disabled</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                          Payouts
+                        </p>
+                        <div className="flex items-center gap-1">
+                          {accountStatus.payouts_enabled ? (
+                            <>
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-700">Enabled</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="h-4 w-4 text-orange-600" />
+                              <span className="text-sm font-medium text-orange-700">Pending</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {accountStatus.email && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <p className="text-xs text-gray-500">Account Email</p>
+                        <p className="text-sm font-medium text-gray-900">{accountStatus.email}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleManageAccount}
+                  disabled={connectLoading}
+                  variant="outline"
+                >
+                  {connectLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
                     </>
                   ) : (
                     <>
-                      <p className="text-gray-600 mb-2">
-                        Account connected, but payouts not yet enabled. Complete your onboarding to enable payouts.
-                      </p>
+                      Manage Stripe Account
+                      <ExternalLink className="ml-2 h-4 w-4" />
                     </>
                   )}
+                </Button>
+              </>
+            ) : (
+              // Partially connected (needs to complete onboarding)
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                  <span className="text-orange-700 font-medium">
+                    Setup Incomplete
+                  </span>
+                </div>
+
+                <p className="text-gray-600 mb-4">
+                  Your Stripe account setup is not complete. Please finish the onboarding
+                  process to start accepting payments.
+                </p>
+
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleConnectStripe}
+                    disabled={connectLoading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {connectLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      'Complete Setup'
+                    )}
+                  </Button>
+
                   <Button
                     onClick={handleManageAccount}
-                    disabled={onboarding}
+                    disabled={connectLoading}
                     variant="outline"
-                    className="w-full sm:w-auto"
                   >
-                    {onboarding ? (
-                      <>
-                        <LoadingSpinner size="sm" className="mr-2" />
-                        Opening...
-                      </>
-                    ) : (
-                      <>
-                        View Payout Dashboard
-                        <ExternalLink className="ml-2 h-4 w-4" />
-                      </>
-                    )}
+                    Manage Account
                   </Button>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-gray-600">
-                    Connect a bank account to receive payments from invoices.
-                  </p>
-                  <Button
-                    onClick={handleSetupPayouts}
-                    disabled={onboarding}
-                    className="w-full sm:w-auto"
-                  >
-                    {onboarding ? (
-                      <>
-                        <LoadingSpinner size="sm" className="mr-2" />
-                        Starting...
-                      </>
-                    ) : (
-                      <>
-                        Setup Payouts
-                        <ExternalLink className="ml-2 h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         </div>
+      </div>
 
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-blue-900 mb-2">How it works</h3>
-          <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-            <li>Connect your Stripe account to receive payments</li>
-            <li>Complete the onboarding process (takes about 5 minutes)</li>
-            <li>Start accepting payments and receiving payouts</li>
-            <li>Manage your account settings anytime</li>
-          </ul>
-        </div>
+      {/* Info Section */}
+      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-blue-900 mb-2">
+          About Stripe Connect
+        </h3>
+        <ul className="text-sm text-blue-800 space-y-1">
+          <li>• Securely accept credit card payments from your customers</li>
+          <li>• Payments are deposited directly to your bank account</li>
+          <li>• Industry-standard security and fraud protection</li>
+          <li>• View detailed transaction history in your Stripe dashboard</li>
+        </ul>
+      </div>
     </div>
   )
 }
 
-export default function PaymentsSettingsPage() {
+export default function PaymentsSettings() {
   return (
-    <Suspense
-      fallback={
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex justify-center items-center min-h-[400px]">
-            <LoadingSpinner size="lg" />
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    }>
       <PaymentsSettingsContent />
     </Suspense>
   )
 }
-

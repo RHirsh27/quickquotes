@@ -259,33 +259,41 @@ export async function POST(req: NextRequest) {
 
       case 'account.updated': {
         const account = event.data.object as Stripe.Account
-        
-        // Find user by stripe_connect_id (more reliable than metadata)
-        const { data: userData, error: userError } = await supabase
-          .from('users')
+
+        // Find team by stripe_account_id
+        const { data: teamData, error: teamError } = await supabase
+          .from('teams')
           .select('id')
-          .eq('stripe_connect_id', account.id)
+          .eq('stripe_account_id', account.id)
           .single()
 
-        if (userError || !userData) {
-          console.error('[Webhook] No user found for Stripe Connect account:', account.id)
+        if (teamError || !teamData) {
+          console.error('[Webhook] No team found for Stripe Connect account:', account.id)
           break
         }
 
-        // Update payouts_enabled status based on account.payouts_enabled
+        // Determine account status based on Stripe account state
+        let accountStatus = 'pending'
+        if (account.charges_enabled && account.details_submitted) {
+          accountStatus = 'active'
+        } else if (account.requirements?.disabled_reason) {
+          accountStatus = 'restricted'
+        }
+
+        // Update team's Connect account status
         const { error: updateError } = await supabase
-          .from('users')
+          .from('teams')
           .update({
-            payouts_enabled: account.payouts_enabled || false,
+            stripe_account_status: accountStatus,
           })
-          .eq('stripe_connect_id', account.id)
+          .eq('stripe_account_id', account.id)
 
         if (updateError) {
-          console.error('[Webhook] Error updating payouts_enabled:', updateError)
+          console.error('[Webhook] Error updating Stripe account status:', updateError)
           throw updateError
         }
 
-        console.log(`[Webhook] Updated payouts_enabled for account ${account.id}: ${account.payouts_enabled}`)
+        console.log(`[Webhook] Updated Connect account status for ${account.id}: ${accountStatus} (charges: ${account.charges_enabled}, payouts: ${account.payouts_enabled})`)
         break
       }
 

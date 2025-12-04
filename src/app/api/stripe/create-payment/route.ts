@@ -23,10 +23,14 @@ export async function POST(req: NextRequest) {
     // Get Supabase client (no auth required for public invoice lookup)
     const supabase = await createClient()
 
-    // Fetch invoice details
+    // Fetch invoice details with team's Connect account
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
-      .select('*, users:user_id (stripe_connect_id, company_name, full_name)')
+      .select(`
+        *,
+        users:user_id (company_name, full_name),
+        teams:team_id (stripe_account_id, stripe_account_status)
+      `)
       .eq('id', invoiceId)
       .single()
 
@@ -69,17 +73,39 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Get tech's Stripe Connect ID
-    const techUser = invoice.users as any
-    const techStripeConnectId = techUser?.stripe_connect_id
+    // Get team's Stripe Connect account
+    const team = invoice.teams as any
+    const stripeAccountId = team?.stripe_account_id
+    const accountStatus = team?.stripe_account_status
 
-    // For quote-converted invoices, we need Stripe Connect
-    // For Stripe Connect invoices, we also need it
-    if (!techStripeConnectId) {
+    // Verify team has completed Stripe Connect onboarding
+    if (!stripeAccountId) {
       return NextResponse.json(
-        { error: 'Service provider has not set up payment processing yet' },
+        { error: 'Service provider has not connected their Stripe account yet. Please ask them to complete Stripe onboarding in Settings > Payments.' },
         { status: 400 }
       )
+    }
+
+    // Verify account is ready to accept payments (charges_enabled)
+    if (accountStatus !== 'active') {
+      // Get live status from Stripe to be sure
+      const stripe = getStripe()
+      const account = await stripe.accounts.retrieve(stripeAccountId)
+
+      if (!account.charges_enabled) {
+        return NextResponse.json(
+          { error: 'Service provider has not completed Stripe onboarding yet. Please ask them to finish setup in Settings > Payments.' },
+          { status: 400 }
+        )
+      }
+
+      // Update status in database if it's now active
+      if (account.charges_enabled && account.details_submitted) {
+        await supabase
+          .from('teams')
+          .update({ stripe_account_status: 'active' })
+          .eq('id', invoice.team_id)
+      }
     }
 
     // Calculate application fee using centralized constant
@@ -107,7 +133,7 @@ export async function POST(req: NextRequest) {
       payment_intent_data: {
         application_fee_amount: applicationFeeAmount,
         transfer_data: {
-          destination: techStripeConnectId,
+          destination: stripeAccountId,
         },
         metadata: {
           type: 'invoice_payment',
