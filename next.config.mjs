@@ -1,12 +1,8 @@
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
-  experimental: {
-    // This is often needed to fix the ESM import error for react-pdf
-    esmExternals: 'loose',
-    // If you are using it in Server Components, you might also need this:
-    serverComponentsExternalPackages: ['@react-pdf/renderer'],
-  },
+  // Moved from experimental.serverComponentsExternalPackages (Next.js 16)
+  serverExternalPackages: ['@react-pdf/renderer'],
   images: {
     remotePatterns: [
       {
@@ -15,8 +11,11 @@ const nextConfig = {
       },
     ],
   },
+  // Enable Turbopack (Next.js 16 default bundler)
+  turbopack: {},
   webpack: (config) => {
     // This prevents webpack from trying to bundle 'canvas', which is a node-only dep
+    // Note: Kept for backwards compatibility when using --webpack flag
     config.resolve.alias.canvas = false;
     return config;
   },

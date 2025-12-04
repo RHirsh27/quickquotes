@@ -14,10 +14,10 @@ import { getStripe } from '@/lib/stripe'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { accountId: string } }
+  { params }: { params: Promise<{ accountId: string }> }
 ) {
   try {
-    const { accountId } = params
+    const { accountId } = await params
 
     // TODO: In production, replace this with a database lookup
     // Example:

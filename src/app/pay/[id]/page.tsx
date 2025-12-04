@@ -6,18 +6,18 @@ import PayInvoiceClient from './PayInvoiceClient'
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
-  searchParams: {
+  }>
+  searchParams: Promise<{
     success?: string
     canceled?: string
-  }
+  }>
 }
 
 export default async function PayInvoicePage({ params, searchParams }: PageProps) {
-  const { id } = params
-  const { success, canceled } = searchParams
+  const { id } = await params
+  const { success, canceled } = await searchParams
 
   // Create Supabase client (public access, no auth required)
   const supabase = await createClient()

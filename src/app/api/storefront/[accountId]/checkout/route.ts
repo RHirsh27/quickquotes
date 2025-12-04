@@ -10,10 +10,10 @@ import { getStripe } from '@/lib/stripe'
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { accountId: string } }
+  { params }: { params: Promise<{ accountId: string }> }
 ) {
   try {
-    const { accountId } = params
+    const { accountId } = await params
     const body = await request.json()
     const { priceId, quantity = 1 } = body
 
