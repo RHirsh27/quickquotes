@@ -35,11 +35,10 @@ export async function GET(request: NextRequest) {
     // Vercel/production should always use NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_APP_URL
     let baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL
 
-    // Fallback for local development - ensure URL has https:// scheme
+    // Hardcoded fallback for production (ensures it always works)
     if (!baseUrl) {
-      const origin = request.nextUrl.origin
-      // If origin doesn't start with http, prepend https
-      baseUrl = origin.startsWith('http') ? origin : `https://${origin}`
+      baseUrl = 'https://www.quotd.app'
+      console.log('[Checkout API] WARNING: Using hardcoded production URL. Add NEXT_PUBLIC_SITE_URL to Vercel env vars.')
     }
 
     console.log('[Checkout API] Creating Stripe session:', {
