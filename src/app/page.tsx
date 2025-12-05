@@ -12,9 +12,15 @@ import {
   ArrowRight,
   Hammer,
   Clock,
-  DollarSign
+  DollarSign,
+  Calendar,
+  MapPin,
+  Route,
+  CreditCard,
+  TrendingUp,
+  Shield
 } from 'lucide-react'
-import { getAllPlans } from '@/config/pricing'
+import { PricingSection } from '@/components/landing/PricingSection'
 
 export default function LandingPage() {
   return (
@@ -60,17 +66,24 @@ export default function LandingPage() {
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight tracking-tight">
-              The Operating System for the Modern Trade Pro.
+              Stop Playing Phone Tag. Start Filling Your Schedule.
             </h1>
             <p className="text-xl text-slate-400 mb-8 leading-relaxed">
-              Ditch the paperwork. Quote, invoice, and get paid from your truck in seconds.
+              The all-in-one operating system for trades. Quote the job, schedule the visit, and get paid—without a single phone call.
             </p>
-            <Link href="/api/checkout?plan=crew">
-              <Button className="bg-blue-600 hover:bg-blue-500 text-white text-lg px-8 py-6 h-auto shadow-[0_0_20px_rgba(37,99,235,0.5)]">
-                Start Quoting for Free
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link href="/signup?plan=CREW">
+                <Button className="bg-blue-600 hover:bg-blue-500 text-white text-lg px-8 py-6 h-auto shadow-[0_0_20px_rgba(37,99,235,0.5)] w-full sm:w-auto">
+                  Start Free Trial
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="#features">
+                <Button variant="outline" className="text-white border-slate-700 hover:bg-slate-800/50 text-lg px-8 py-6 h-auto w-full sm:w-auto">
+                  See How It Works
+                </Button>
+              </Link>
+            </div>
           </div>
           <div className="relative">
             {/* Device Mockup Container */}
@@ -92,9 +105,12 @@ export default function LandingPage() {
       {/* Pain Points Section */}
       <section className="relative py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-12 tracking-tight">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-4 tracking-tight">
             Stop Losing Time and Money
           </h2>
+          <p className="text-center text-slate-400 mb-12 max-w-2xl mx-auto">
+            You're running a business, not a spreadsheet. Get everything you need in one place.
+          </p>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-slate-900/50 backdrop-blur-sm p-8 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all hover:shadow-lg hover:shadow-blue-500/10">
               <div className="bg-red-500/10 w-16 h-16 rounded-full flex items-center justify-center mb-4 border border-red-500/20">
@@ -107,11 +123,11 @@ export default function LandingPage() {
             </div>
             <div className="bg-slate-900/50 backdrop-blur-sm p-8 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all hover:shadow-lg hover:shadow-blue-500/10">
               <div className="bg-blue-500/10 w-16 h-16 rounded-full flex items-center justify-center mb-4 border border-blue-500/20">
-                <FileText className="h-8 w-8 text-blue-500" />
+                <Calendar className="h-8 w-8 text-blue-500" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-3">Look Professional</h3>
+              <h3 className="text-xl font-bold text-white mb-3">Stop Double-Booking</h3>
               <p className="text-slate-400">
-                Send polished PDF estimates with your logo and branding. Build trust with customers instantly.
+                Smart scheduling with travel time warnings. See your whole crew's calendar at a glance.
               </p>
             </div>
             <div className="bg-slate-900/50 backdrop-blur-sm p-8 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all hover:shadow-lg hover:shadow-blue-500/10">
@@ -120,7 +136,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-bold text-white mb-3">Get Paid Faster</h3>
               <p className="text-slate-400">
-                Send quotes immediately while you're still on-site. Faster quotes mean faster approvals and payments.
+                Accept credit cards on-site. Send payment links. Get paid before you leave the job.
               </p>
             </div>
           </div>
@@ -129,20 +145,23 @@ export default function LandingPage() {
 
       {/* How It Works Section */}
       <section className="relative container mx-auto px-4 py-16 md:py-24">
-        <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-12 tracking-tight">
+        <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-4 tracking-tight">
           How It Works
         </h2>
-        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+        <p className="text-center text-slate-400 mb-12 max-w-2xl mx-auto">
+          From quote to payment, all in one place. No more switching between apps.
+        </p>
+        <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
           <div className="text-center">
             <div className="bg-blue-600 text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 shadow-[0_0_20px_rgba(37,99,235,0.5)]">
               1
             </div>
             <div className="bg-blue-500/10 border border-blue-500/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="h-10 w-10 text-blue-500" />
+              <FileText className="h-10 w-10 text-blue-500" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-3">Add Customer</h3>
+            <h3 className="text-xl font-bold text-white mb-3">Create Quote</h3>
             <p className="text-slate-400">
-              Select an existing customer or add a new one on the spot. All their info is saved for next time.
+              Build professional estimates on-site. Use presets or custom items. Send instantly.
             </p>
           </div>
           <div className="text-center">
@@ -150,11 +169,11 @@ export default function LandingPage() {
               2
             </div>
             <div className="bg-blue-500/10 border border-blue-500/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Hammer className="h-10 w-10 text-blue-500" />
+              <Calendar className="h-10 w-10 text-blue-500" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-3">Add Line Items</h3>
+            <h3 className="text-xl font-bold text-white mb-3">Schedule Job</h3>
             <p className="text-slate-400">
-              Use your saved presets or add custom items. Calculate totals with tax in real-time.
+              Convert approved quotes to jobs. Assign to your crew. See everyone's schedule at a glance.
             </p>
           </div>
           <div className="text-center">
@@ -162,176 +181,140 @@ export default function LandingPage() {
               3
             </div>
             <div className="bg-blue-500/10 border border-blue-500/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Send className="h-10 w-10 text-blue-500" />
+              <Route className="h-10 w-10 text-blue-500" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-3">Send PDF</h3>
+            <h3 className="text-xl font-bold text-white mb-3">Dispatch & Track</h3>
             <p className="text-slate-400">
-              One tap to send via text or email. Your customer gets a professional PDF estimate instantly.
+              Optimize routes with travel time warnings. Send automated reminders. Never double-book.
+            </p>
+          </div>
+          <div className="text-center">
+            <div className="bg-blue-600 text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 shadow-[0_0_20px_rgba(37,99,235,0.5)]">
+              4
+            </div>
+            <div className="bg-blue-500/10 border border-blue-500/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CreditCard className="h-10 w-10 text-blue-500" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Get Paid</h3>
+            <p className="text-slate-400">
+              Convert to invoice. Send payment link. Accept credit cards. Get paid before you leave.
             </p>
           </div>
         </div>
       </section>
 
       {/* Features Grid */}
-      <section className="relative py-16 md:py-24">
+      <section id="features" className="relative py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-12 tracking-tight">
-            Everything You Need
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-4 tracking-tight">
+            Everything You Need to Run Your Business
           </h2>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
-              <FileText className="h-12 w-12 text-blue-500 mb-4" />
-              <h3 className="text-lg font-bold text-white mb-2">PDF Generation</h3>
-              <p className="text-slate-400 text-sm">
-                Professional PDF estimates with your branding, ready to send or print.
-              </p>
+          <p className="text-center text-slate-400 mb-12 max-w-2xl mx-auto">
+            One platform. Zero spreadsheets. Maximum efficiency.
+          </p>
+          
+          {/* Core Features */}
+          <div className="mb-12">
+            <h3 className="text-2xl font-bold text-white mb-6 text-center">Quoting & Invoicing</h3>
+            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
+                <FileText className="h-12 w-12 text-blue-500 mb-4" />
+                <h3 className="text-lg font-bold text-white mb-2">Professional PDFs</h3>
+                <p className="text-slate-400 text-sm">
+                  Branded estimates and invoices that build trust with customers.
+                </p>
+              </div>
+              <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
+                <Users className="h-12 w-12 text-blue-500 mb-4" />
+                <h3 className="text-lg font-bold text-white mb-2">Customer History</h3>
+                <p className="text-slate-400 text-sm">
+                  Track all quotes, invoices, and payments for every customer.
+                </p>
+              </div>
+              <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
+                <CreditCard className="h-12 w-12 text-blue-500 mb-4" />
+                <h3 className="text-lg font-bold text-white mb-2">Accept Payments</h3>
+                <p className="text-slate-400 text-sm">
+                  Credit cards, payment links, and deposits—all in one place.
+                </p>
+              </div>
             </div>
-            <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
-              <Users className="h-12 w-12 text-blue-500 mb-4" />
-              <h3 className="text-lg font-bold text-white mb-2">Customer History</h3>
-              <p className="text-slate-400 text-sm">
-                Keep track of all your customers and their quote history in one place.
-              </p>
+          </div>
+
+          {/* Scheduling & Dispatch */}
+          <div className="mb-12">
+            <h3 className="text-2xl font-bold text-white mb-6 text-center">Scheduling & Dispatch</h3>
+            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
+                <Calendar className="h-12 w-12 text-blue-500 mb-4" />
+                <h3 className="text-lg font-bold text-white mb-2">Smart Scheduling</h3>
+                <p className="text-slate-400 text-sm">
+                  Visual calendar with travel time warnings. Never double-book again.
+                </p>
+              </div>
+              <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
+                <Route className="h-12 w-12 text-blue-500 mb-4" />
+                <h3 className="text-lg font-bold text-white mb-2">Route Optimization</h3>
+                <p className="text-slate-400 text-sm">
+                  See travel times between jobs. Optimize your crew's daily routes.
+                </p>
+              </div>
+              <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
+                <MessageCircle className="h-12 w-12 text-blue-500 mb-4" />
+                <h3 className="text-lg font-bold text-white mb-2">Auto Reminders</h3>
+                <p className="text-slate-400 text-sm">
+                  SMS and email reminders sent automatically to customers.
+                </p>
+              </div>
             </div>
-            <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
-              <Zap className="h-12 w-12 text-blue-500 mb-4" />
-              <h3 className="text-lg font-bold text-white mb-2">One-Tap Presets</h3>
-              <p className="text-slate-400 text-sm">
-                Save your common services and add them to quotes with a single tap.
-              </p>
-            </div>
-            <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
-              <Smartphone className="h-12 w-12 text-blue-500 mb-4" />
-              <h3 className="text-lg font-bold text-white mb-2">Mobile-First</h3>
-              <p className="text-slate-400 text-sm">
-                Built for your phone. Quote jobs from anywhere, anytime.
-              </p>
-            </div>
-            <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
-              <MessageCircle className="h-12 w-12 text-blue-500 mb-4" />
-              <h3 className="text-lg font-bold text-white mb-2">Text & Email</h3>
-              <p className="text-slate-400 text-sm">
-                Send quotes directly via text message or email with one tap.
-              </p>
-            </div>
-            <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
-              <CheckCircle className="h-12 w-12 text-blue-500 mb-4" />
-              <h3 className="text-lg font-bold text-white mb-2">Real-Time Math</h3>
-              <p className="text-slate-400 text-sm">
-                Automatic calculations for subtotals, tax, and totals as you build quotes.
-              </p>
+          </div>
+
+          {/* Fintech Features */}
+          <div>
+            <h3 className="text-2xl font-bold text-white mb-6 text-center">Financial Tools</h3>
+            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
+                <TrendingUp className="h-12 w-12 text-blue-500 mb-4" />
+                <h3 className="text-lg font-bold text-white mb-2">Revenue Tracking</h3>
+                <p className="text-slate-400 text-sm">
+                  See your cash flow, outstanding invoices, and payment history.
+                </p>
+              </div>
+              <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
+                <Shield className="h-12 w-12 text-blue-500 mb-4" />
+                <h3 className="text-lg font-bold text-white mb-2">Risk Profiles</h3>
+                <p className="text-slate-400 text-sm">
+                  Build your business credit profile with automated metrics tracking.
+                </p>
+              </div>
+              <div className="bg-slate-900/50 backdrop-blur-sm p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all">
+                <Zap className="h-12 w-12 text-blue-500 mb-4" />
+                <h3 className="text-lg font-bold text-white mb-2">Smart Estimates</h3>
+                <p className="text-slate-400 text-sm">
+                  AI-powered duration estimates based on your service history.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Pricing Section */}
-      <section className="relative container mx-auto px-4 py-16 md:py-24">
-        <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-12 tracking-tight">
-          Simple, Transparent Pricing
-        </h2>
-        {/* Pricing Cards - Clean 3 Card Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {getAllPlans().map((plan) => {
-            const isHighlighted = plan.label === 'Best Value'
-            return (
-              <div
-                key={plan.id}
-                className={`relative bg-slate-900/50 backdrop-blur-sm rounded-xl border-2 transition-all hover:shadow-xl ${
-                  isHighlighted
-                    ? 'border-blue-600 scale-105 md:scale-110 shadow-[0_0_40px_rgba(37,99,235,0.3)]'
-                    : 'border-slate-800 hover:border-slate-700'
-                }`}
-              >
-                {/* Radial Glow for Highlighted Card */}
-                {isHighlighted && (
-                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/30 to-blue-400/30 rounded-xl blur-xl opacity-50 -z-10" />
-                )}
-                
-                {/* Badge */}
-                {plan.label && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className={`px-4 py-1 rounded-full text-sm font-semibold ${
-                      isHighlighted
-                        ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.5)]'
-                        : 'bg-slate-800 text-slate-300 border border-slate-700'
-                    }`}>
-                      {plan.label}
-                    </span>
-                  </div>
-                )}
-
-                <div className="p-8">
-                  {/* Plan Name */}
-                  <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">
-                    {plan.name}
-                  </h3>
-
-                  {/* Description */}
-                  {plan.description && (
-                    <p className="text-slate-400 mb-4 text-sm">{plan.description}</p>
-                  )}
-
-                  {/* Price */}
-                  <div className="mb-6">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-white">
-                        ${plan.price}
-                      </span>
-                      <span className="text-slate-400">/{plan.interval}</span>
-                    </div>
-                  </div>
-
-                  {/* Features */}
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
-                        <span className="text-slate-300">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* Footer (for Team plan overage) */}
-                  {plan.footer && (
-                    <p className="text-xs text-slate-500 mb-4 text-center">
-                      {plan.footer}
-                    </p>
-                  )}
-
-                  {/* CTA Button - Direct to Stripe Checkout */}
-                  <Link href={`/api/checkout?plan=${plan.id.toLowerCase()}`} className="block">
-                    <Button
-                      className={`w-full ${
-                        isHighlighted
-                          ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.5)]'
-                          : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
-                      }`}
-                    >
-                      Get Started
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </section>
+      <PricingSection />
 
       {/* CTA Section */}
       <section className="relative py-16 md:py-20">
         <div className="container mx-auto px-4 text-center">
           <div className="bg-gradient-to-r from-blue-600/20 to-blue-400/20 backdrop-blur-sm border border-blue-500/30 rounded-2xl p-12 max-w-4xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">
-              Ready to Quote Faster?
+              Ready to Run Your Business Better?
             </h2>
             <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-              Join thousands of tradespeople who are already saving time and winning more jobs.
+              Join tradespeople who are already saving hours every week and getting paid faster.
             </p>
-            <Link href="/api/checkout?plan=crew">
+            <Link href="/signup?plan=CREW">
               <Button className="bg-blue-600 hover:bg-blue-500 text-white text-lg px-8 py-6 h-auto shadow-[0_0_20px_rgba(37,99,235,0.5)]">
-                Start Quoting for Free
+                Start Free Trial
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>

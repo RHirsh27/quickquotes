@@ -7,7 +7,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 export const Card = ({ children, className = '', ...props }: CardProps) => {
   return (
     <div
-      className={`bg-white rounded-lg shadow-md p-6 ${className}`}
+      className={`bg-white rounded-lg border border-gray-200 shadow-sm ${className}`}
       {...props}
     >
       {children}
@@ -21,7 +21,7 @@ export const CardHeader = ({
   ...props
 }: CardProps) => {
   return (
-    <div className={`mb-4 ${className}`} {...props}>
+    <div className={`p-6 pb-4 ${className}`} {...props}>
       {children}
     </div>
   )
@@ -39,13 +39,37 @@ export const CardTitle = ({
   )
 }
 
+export const CardDescription = ({
+  children,
+  className = '',
+  ...props
+}: CardProps) => {
+  return (
+    <p className={`text-sm text-gray-500 mt-1 ${className}`} {...props}>
+      {children}
+    </p>
+  )
+}
+
 export const CardContent = ({
   children,
   className = '',
   ...props
 }: CardProps) => {
   return (
-    <div className={className} {...props}>
+    <div className={`p-6 pt-0 ${className}`} {...props}>
+      {children}
+    </div>
+  )
+}
+
+export const CardFooter = ({
+  children,
+  className = '',
+  ...props
+}: CardProps) => {
+  return (
+    <div className={`p-6 pt-0 ${className}`} {...props}>
       {children}
     </div>
   )

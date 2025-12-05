@@ -3,20 +3,24 @@
  * All pricing-related logic should reference this configuration
  */
 
-export type PlanId = 'SOLO' | 'CREW' | 'TEAM'
+export type PlanId = 'STARTER' | 'GROWTH' | 'PRO'
+
+// Legacy plan IDs for backward compatibility
+export type LegacyPlanId = 'SOLO' | 'CREW' | 'TEAM'
 
 export interface PricingPlan {
   id: PlanId
   name: string
   price: number
   interval: 'month' | 'year'
-  userLimit: number
+  userLimit: number // Kept for backward compatibility (maps to calendarLimit)
+  calendarLimit: number // New: Number of active calendars allowed
   stripePriceId: string
   description: string
   features: string[]
-  label?: string // Optional label like "Best Value"
-  footer?: string // Optional footer text like "+ $25/seat after 10 users"
-  seatPrice?: number // Price per additional seat (for Team plan overage)
+  label?: string // Optional label like "Best Value" or "MOST POPULAR"
+  footer?: string // Optional footer text
+  seatPrice?: number // Price per additional seat (for overage)
 }
 
 // =============================================================================
@@ -25,78 +29,86 @@ export interface PricingPlan {
 // Follow these steps to set up Stripe pricing:
 //
 // 1. Go to Stripe Dashboard > Products: https://dashboard.stripe.com/products
-// 2. Create 4 recurring products with the following details:
+// 2. Create 3 recurring products with the following details:
 //
-//    Product 1: "Solo Plan"
+//    Product 1: "Starter Plan"
 //      - Price: $29/month (recurring)
-//      - Copy the Price ID (starts with "price_") and paste below as SOLO stripePriceId
-//      - Also set in .env: NEXT_PUBLIC_STRIPE_PRICE_SOLO=price_xxx
+//      - Copy the Price ID (starts with "price_") and paste below as STARTER stripePriceId
+//      - Update: Replace "price_starter_id_placeholder" with actual Price ID
 //
-//    Product 2: "Crew Plan"
+//    Product 2: "Growth Plan"
 //      - Price: $99/month (recurring)
-//      - Copy the Price ID and paste below as CREW stripePriceId
-//      - Also set in .env: NEXT_PUBLIC_STRIPE_PRICE_CREW=price_xxx
+//      - Copy the Price ID and paste below as GROWTH stripePriceId
+//      - Update: Replace "price_growth_id_placeholder" with actual Price ID
 //
-//    Product 3: "Team Plan"
+//    Product 3: "Pro Plan"
 //      - Price: $199/month (recurring)
-//      - Copy the Price ID and paste below as TEAM stripePriceId
-//      - Also set in .env: NEXT_PUBLIC_STRIPE_PRICE_TEAM=price_xxx
+//      - Copy the Price ID and paste below as PRO stripePriceId
+//      - Update: Replace "price_pro_id_placeholder" with actual Price ID
 //
-//    Product 4: "Extra Seat" (for Team plan overage)
-//      - Price: $25/month (recurring)
-//      - Copy the Price ID and paste below as EXTRA_SEAT_PRICE_ID
-//      - Also set in .env: NEXT_PUBLIC_STRIPE_EXTRA_SEAT_PRICE_ID=price_xxx
-//
-// 3. Update both this file AND your .env file with the Price IDs
-// 4. Verify all IDs match between this file and environment variables
-// 5. Test checkout flow before launching
+// 3. Update this file with the actual Stripe Price IDs
+// 4. Test checkout flow before launching
 // =============================================================================
 
-export const EXTRA_SEAT_PRICE_ID = "price_1SZhk5CCOgkFoQDAw4bb166l"; // Extra Seat Price ID for Team plan overage ($25/month)
+// Note: Extra seat pricing removed - new model uses calendar limits instead
+export const EXTRA_SEAT_PRICE_ID = ""; // No longer used with new pricing model
 
 export const APPLICATION_FEE_PERCENT = 0.01; // 1% platform fee on Stripe Connect payments
 
 export const PRICING_PLANS: Record<PlanId, PricingPlan> = {
-  SOLO: {
-    id: 'SOLO',
-    name: "Solo",
+  STARTER: {
+    id: 'STARTER',
+    name: "Starter",
     price: 29,
     interval: "month",
-    userLimit: 1,
-    stripePriceId: "price_1SZBBcCCOgkFoQDA9XbZzVpz",
-    description: "For the owner-operator.",
-    features: ["Unlimited Quotes", "Branded PDF", "Client History", "Accept Credit Cards"]
+    userLimit: 1, // Maps to calendarLimit for backward compatibility
+    calendarLimit: 1,
+    stripePriceId: "price_starter_id_placeholder", // Update with actual Stripe Price ID
+    description: "For the solo operator.",
+    features: ["1 Active Calendar", "Unlimited Quotes", "Basic CRM"]
   },
-  CREW: {
-    id: 'CREW',
-    name: "Crew",
+  GROWTH: {
+    id: 'GROWTH',
+    name: "Growth",
     price: 99,
     interval: "month",
-    userLimit: 5,
-    stripePriceId: "price_1SZBCVCCOgkFoQDA1I8d7xnu",
-    description: "For small crews (up to 5).",
-    features: ["Everything in Solo", "Up to 5 Users", "Shared Price Book", "Team Dashboard"],
-    label: "Best Value"
+    userLimit: 3, // Maps to calendarLimit for backward compatibility
+    calendarLimit: 3,
+    stripePriceId: "price_growth_id_placeholder", // Update with actual Stripe Price ID
+    description: "For small crews needing dispatch.",
+    features: ["Up to 3 Active Calendars", "Magic Link Booking", "SMS Reminders"],
+    label: "MOST POPULAR"
   },
-  TEAM: {
-    id: 'TEAM',
-    name: "Team",
+  PRO: {
+    id: 'PRO',
+    name: "Pro",
     price: 199,
     interval: "month",
-    userLimit: 10,
-    stripePriceId: "price_1SZBDTCCOgkFoQDA0seUDd2R",
+    userLimit: 999, // Maps to calendarLimit for backward compatibility
+    calendarLimit: 999, // Unlimited
+    stripePriceId: "price_pro_id_placeholder", // Update with actual Stripe Price ID
     description: "For growing businesses.",
-    features: ["Everything in Crew", "Up to 10 Users", "Role Permissions", "Priority Support"],
-    footer: "+ $25/seat after 10 users",
-    seatPrice: 25
+    features: ["Unlimited Calendars", "AI Agent", "Fleet Tracking"]
   }
 } as const
 
+// Legacy plan mapping for backward compatibility
+const LEGACY_PLAN_MAP: Record<LegacyPlanId, PlanId> = {
+  SOLO: 'STARTER',
+  CREW: 'GROWTH',
+  TEAM: 'PRO'
+}
+
 /**
- * Get a plan by its ID
+ * Get a plan by its ID (supports both new and legacy plan IDs)
  */
-export function getPlanById(planId: PlanId): PricingPlan {
-  return PRICING_PLANS[planId]
+export function getPlanById(planId: PlanId | LegacyPlanId): PricingPlan {
+  // Handle legacy plan IDs
+  if (planId in LEGACY_PLAN_MAP) {
+    const mappedId = LEGACY_PLAN_MAP[planId as LegacyPlanId]
+    return PRICING_PLANS[mappedId]
+  }
+  return PRICING_PLANS[planId as PlanId]
 }
 
 /**
@@ -119,9 +131,14 @@ export function getAllPlans(): PricingPlan[] {
 /**
  * Get the next plan (for upgrade suggestions)
  */
-export function getNextPlan(currentPlanId: PlanId): PricingPlan | null {
-  const planOrder: PlanId[] = ['SOLO', 'CREW', 'TEAM']
-  const currentIndex = planOrder.indexOf(currentPlanId)
+export function getNextPlan(currentPlanId: PlanId | LegacyPlanId): PricingPlan | null {
+  // Map legacy plan IDs to new ones
+  const mappedPlanId = currentPlanId in LEGACY_PLAN_MAP 
+    ? LEGACY_PLAN_MAP[currentPlanId as LegacyPlanId]
+    : currentPlanId as PlanId
+    
+  const planOrder: PlanId[] = ['STARTER', 'GROWTH', 'PRO']
+  const currentIndex = planOrder.indexOf(mappedPlanId)
   if (currentIndex === -1 || currentIndex === planOrder.length - 1) {
     return null
   }
@@ -129,10 +146,22 @@ export function getNextPlan(currentPlanId: PlanId): PricingPlan | null {
 }
 
 /**
- * Get plan by ID (case-insensitive)
+ * Get plan by ID (case-insensitive, supports both new and legacy plan IDs)
  */
 export function getPlanByIdCaseInsensitive(planId: string): PricingPlan | null {
-  const upperPlanId = planId.toUpperCase() as PlanId
-  return PRICING_PLANS[upperPlanId] || null
+  const upperPlanId = planId.toUpperCase()
+  
+  // Try new plan IDs first
+  if (upperPlanId in PRICING_PLANS) {
+    return PRICING_PLANS[upperPlanId as PlanId]
+  }
+  
+  // Try legacy plan IDs
+  if (upperPlanId in LEGACY_PLAN_MAP) {
+    const mappedId = LEGACY_PLAN_MAP[upperPlanId as LegacyPlanId]
+    return PRICING_PLANS[mappedId]
+  }
+  
+  return null
 }
 
